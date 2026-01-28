@@ -14,6 +14,7 @@ library(stringr)
 library(ggmap)
 library(tidygeocoder)
 library(writexl)
+library(readr) # added to safely parse numbers
 
 #### Data set ####
 ## load data and inspection
@@ -103,16 +104,21 @@ final_prices <- final_prices %>%
   relocate(log_price_sqm, .after = cena_wartosc_1m2)
 
 ### Clean Density data set ###
-
 #Cleaning the Polish letters and NAs from Density data set
 cleaned_density_data <- density %>%
  clean_names() %>%
  select(-code) %>%
   mutate(across(where(is.character),
-              ~ stri_trans_general(., "Latin-ASCII")))
-
+             ~ tolower(stri_trans_general(., "Latin-ASCII"))))%>%
   # remove missing values
 na.omit()
+
+# Erase first 2 rows and Distric 8 from the name
+cleaned_density_data <- cleaned_density_data %>%
+  slice(-c(1, 2)) %>%                                   # remove first 2 rows
+  mutate(
+    name = str_remove(name, "\\s*-\\s*district\\s*\\(8\\)")
+  )
 
 
 ## Clean Wages data set
@@ -121,3 +127,32 @@ na.omit()
 median_wage_clean <- median_wage %>%
   select(-Code, -Name) %>%
   slice(-c(1, 2, 3, 4))
+
+#Wide to Long
+median_wage_clean<- median_wage_clean %>%
+  pivot_longer(
+    cols = everything(),
+    names_to = "month",
+    values_to = "median_wage"
+  ) %>%
+  mutate(median_wage = readr::parse_number(median_wage))
+
+# Convert wage median to quarterly median
+
+wage_quarterly <- median_wage_clean %>%
+  mutate(
+    quarter = case_when(
+      month %in% c("January", "February", "March") ~ "q1",
+      month %in% c("April", "May", "June")         ~ "q2",
+      month %in% c("July", "August", "September")  ~ "q3",
+    ))
+wage_quarterly <- wage_quarterly %>%
+  group_by(quarter) %>%
+  summarise(
+    median_wage_q = mean(median_wage, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Add log median wage quarterly
+wage_quarterly <- wage_quarterly %>%
+  mutate(log_median_wage_q = log(median_wage_q))
