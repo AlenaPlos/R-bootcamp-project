@@ -1,0 +1,92 @@
+<center>
+Luzern University of Applied Sciences and Arts
+------------------------------
+
+ *Name of the project*
+===========================
+R Bootcamp
+---------------------------
+W.MSCIDS_RB01.H2501
+---------------------------
+Group Members:
+---------------------------
+Alena Ploshchansky
+---------------------------
+Rita Ahlborn
+---------------------------
+Luzern, 2026-01-28
+---------------------------
+</center>
+
+
+### Table of Contents
+
+
+
+### 1. Introduction and Hypothesis
+
+#### 1.1 Background and purpose of the project
+
+### 2. Data Description
+
+#### 3. Data Preparation
+
+
+# Load required libraries
+
+```{r knitr-setup, include = FALSE}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(readxl)
+library(janitor)
+library(stringi)
+library(stringr)
+library(ggmap)
+library(tidygeocoder)
+library(writexl)
+library(readr)
+```
+##### 3.1 Data Cleaning and transformation
+
+
+###### 3.1.1 Price Data
+
+
+###### 3.1.2 Wage Data
+
+
+###### 3.1.3 Density Data
+
+
+##### 3.2 Data merging
+
+#### 4. Data Analysis
+
+##### 4.1 Descriptive Statistics
+
+##### 4.1.1 Summary Statistics
+##### 4.1.2 Distribution and Visualization
+
+##### 4.2 Hypotheses
+###### 4.2.1 Hypothesis 1
+Neighborhoods with higher density show lower prices per sqm than neighborhoods with lower density
+    1. Simple linear regression: log_price_sqm ~ log_density
+    2. Map ??
+
+
+###### 4.2.2 Hypothesis 2
+Affordability of residential real estate on the left bank of the Vistula River in Warsaw is lower in comparison to right bank neighborhoods.
+    1. Affordability calculation
+    2. T-test
+    3. Visuals: boxplot of affordability by bank
+
+
+###### 4.2.3 Hypothesis 3
+Newer buildings are less affordable than older and very old buildings.
+    1. T-test
+- bla bla
+### 5. Discussion and Limitations
+### 6. Conclusion
+
+

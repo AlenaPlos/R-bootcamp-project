@@ -60,7 +60,7 @@ clean_prices <- clean_prices %>%
   select(-c("zrodlo_informacji", "cena_wartosc", "waluta", "numer_budynku"))
 
 
-## Coordinates data type conversion
+## Coordinates data type conversion and save
 streets_geo <- clean_prices %>%
   distinct(ulica) %>%
   mutate(address = paste0(ulica, ", Warsaw, Poland")) %>%
