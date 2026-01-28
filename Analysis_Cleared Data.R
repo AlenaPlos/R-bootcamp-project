@@ -10,6 +10,7 @@ library(tidyr)
 library(readxl)
 library(janitor)
 library(stringi)
+library(stringr)
 library(ggmap)
 library(tidygeocoder)
 library(writexl)
@@ -40,7 +41,7 @@ glimpse(median_wage)
 #### Data manipulation ####
 ## Data cleaning and transformation
 
-## Prices data set cleaning
+### Prices data set cleaning ###
 
 ## Check for missing values
 sum(is.na(prices))
@@ -82,15 +83,33 @@ glimpse(final_prices)
 final_prices <- final_prices %>%
   filter(!is.na(latitude) & !is.na(longitude))
 
+## Create building age groups
+final_prices <- final_prices %>%
+  mutate(
+    building_age_group = case_when(
+      rok_budowy < 1960 ~ "very_old",
+      rok_budowy >= 1960 & rok_budowy < 2010 ~ "old",
+      rok_budowy >= 2010 & rok_budowy <= 2025 ~ "new",
+      TRUE ~ NA_character_))
 
-## Clean Density data set
+## Date conversion
+final_prices <- final_prices %>%
+  mutate(quarter_only = str_extract(data_transakcji_wyceny, "q[1-4]")) %>% # we left quarter only as all the data is from 2025
+  select(-data_transakcji_wyceny)
+
+final_prices <- final_prices %>%
+    relocate(quarter_only, .before = cena_wartosc_1m2) %>%
+  mutate(log_price_sqm = log(cena_wartosc_1m2)) %>%
+  relocate(log_price_sqm, .after = cena_wartosc_1m2)
+
+### Clean Density data set ###
 
 #Cleaning the Polish letters and NAs from Density data set
 cleaned_density_data <- density %>%
  clean_names() %>%
  select(-code) %>%
   mutate(across(where(is.character),
-              ~ tolower(stri_trans_general(., "Latin-ASCII")))) %>%
+              ~ stri_trans_general(., "Latin-ASCII")))
 
   # remove missing values
 na.omit()
