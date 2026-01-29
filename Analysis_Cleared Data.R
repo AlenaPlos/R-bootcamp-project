@@ -69,23 +69,23 @@ streets_geo <- clean_prices %>%
           lat = latitude,
           long = longitude)
 
-final_prices <- clean_prices %>%
+clean_prices <- clean_prices %>%
   left_join(streets_geo, by = "ulica")
 
 ## Remove unnecessary columns
-final_prices <- final_prices %>%
+clean_prices <- clean_prices %>%
     select(-address)
 
 ## Check final price data for missing values
-sum(is.na(final_prices))
-glimpse(final_prices)
+sum(is.na(clean_prices))
+glimpse(clean_prices)
 
 ## Delete rows with missing coordinates
-final_prices <- final_prices %>%
+clean_prices <- clean_prices %>%
   filter(!is.na(latitude) & !is.na(longitude))
 
 ## Create building age groups
-final_prices <- final_prices %>%
+clean_prices <- clean_prices %>%
   mutate(
     building_age_group = case_when(
       rok_budowy < 1960 ~ "very_old",
@@ -94,11 +94,11 @@ final_prices <- final_prices %>%
       TRUE ~ NA_character_))
 
 ## Date conversion
-final_prices <- final_prices %>%
+clean_prices <- clean_prices %>%
   mutate(quarter_only = str_extract(data_transakcji_wyceny, "q[1-4]")) %>% # we left quarter only as all the data is from 2025
   select(-data_transakcji_wyceny)
 
-final_prices <- final_prices %>%
+clean_prices <- clean_prices %>%
     relocate(quarter_only, .before = cena_wartosc_1m2) %>%
   mutate(log_price_sqm = log(cena_wartosc_1m2)) %>%
   relocate(log_price_sqm, .after = cena_wartosc_1m2)

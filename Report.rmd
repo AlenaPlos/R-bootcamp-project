@@ -8,6 +8,10 @@
 
 Alena Ploshchansky · Rita Ahlborn
 
+*Master of Science in Real Estate*
+
+*Minor in Data Science*
+
 Lucerne University of Applied Sciences and Arts
 
 January 28, 2026
@@ -27,17 +31,9 @@ January 28, 2026
 
 
 ## **2. Data Description**
+Sources and types of data will be explained here. how many collumns/rows, what kind of variables, etc.
 
-
----
-
-
-## **3. Data Preparation**
-
-
-
-
-```{r knitr-setup, include = FALSE}
+```{r libraries, include = FALSE}
 # Load required libraries
 # Here maybe we should separate libtraries based on usage
 library(dplyr)
@@ -57,12 +53,94 @@ library(knitr)
 library(rmarkdown)
 
 # To be updated ...
-```
-### 3.1 Data Cleaning and transformation
 
+```
+
+
+```{r data, include = FALSE}
+#### Data set ####
+## load data and inspection
+
+## Prices data set
+prices <- read_excel("Prices.xlsx")
+head(prices)
+dim(prices)
+
+## Density data set
+density <- read_excel("Density.xlsx", sheet="TABLE")
+head(density)
+dim(density)
+
+## Median wage data set
+median_wage <- read_excel("MedianWage.xlsx", sheet="TABLE")
+head(median_wage)
+dim(median_wage)
+
+## Data check
+glimpse(prices)
+glimpse(density)
+glimpse(median_wage)
+
+```
+
+---
+
+
+## **3. Data Preparation**
+In this chapter we describe the datasets we have as well as prepare it for further
+analysis. We clean it, transform it and merge it into one final dataset.
+
+
+
+
+### 3.1 Data Cleaning and transformation
+This chapter is dedicated to cleaning and transforming each dataset separately.
+After all the manipulations we will have three clean datasets ready for merging.
+We will merge them in this chapter as well.
+We have 3 datasets: prices, density, median_wage.
 
 #### *3.1.1 Price Data*
+Here we check for missing values and clean the data. We remove columns that are not needed.
 
+```{r prices_values, include = FALSE}
+## Check for missing values
+sum(is.na(prices))
+## Remove and change polish letters, convert to lower case
+clean_prices <- prices %>%
+  clean_names() %>%
+  mutate(across(where(is.character),
+            ~ tolower(stri_trans_general(., "Latin-ASCII"))))
+
+## Check cleaned data
+glimpse(clean_prices)
+
+## Remove unnecessary columns
+clean_prices <- clean_prices %>%
+  select(-c("zrodlo_informacji", "cena_wartosc", "waluta", "numer_budynku"))
+
+```
+Here we create new variables: price per sqm, log price per sqm, etc.
+First is geo data
+```{r prices_geo, include = FALSE}
+## Coordinates data type conversion and save
+if (!file.exists("streets_geo.rds")) {
+
+  streets_geo <- clean_prices %>%
+    distinct(ulica) %>%
+    mutate(address = paste0(ulica, ", Warsaw, Poland")) %>%
+    geocode(
+      address = address,
+      method = "osm",
+      lat = latitude,
+      long = longitude
+    )
+
+  saveRDS(streets_geo, "streets_geo.rds")
+}
+
+# Load saved geo data
+streets_geo <- readRDS("streets_geo.rds")
+```
 
 #### *3.1.2 Wage Data*
 
