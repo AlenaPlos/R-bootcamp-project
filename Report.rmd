@@ -140,15 +140,124 @@ if (!file.exists("streets_geo.rds")) {
 
 # Load saved geo data
 streets_geo <- readRDS("streets_geo.rds")
+
+clean_prices <- clean_prices %>%
+  left_join(streets_geo, by = "ulica")
+```
+
+
+```{r prices_cleaning, include = FALSE}
+
+## Remove unnecessary columns
+clean_prices <- clean_prices %>%
+select(-address)
+
+## Check final price data for missing values
+sum(is.na(clean_prices))
+glimpse(clean_prices)
+
+## Delete rows with missing coordinates
+clean_prices <- clean_prices %>%
+filter(!is.na(latitude) & !is.na(longitude))
+```
+
+```{r prices_age, include = FALSE}
+## Create building age groups
+clean_prices <- clean_prices %>%
+mutate(
+building_age_group = case_when(
+rok_budowy < 1960 ~ "very_old",
+rok_budowy >= 1960 & rok_budowy < 2010 ~ "old",
+rok_budowy >= 2010 & rok_budowy <= 2025 ~ "new",
+TRUE ~ NA_character_))
+```
+
+```{r prices_date, include = FALSE}
+## Date conversion
+clean_prices <- clean_prices %>%
+mutate(quarter_only = str_extract(data_transakcji_wyceny, "q[1-4]")) %>% # we left quarter only as all the data is from 2025
+select(-data_transakcji_wyceny)
+```
+
+``` {r prices_log, include = FALSE}
+clean_prices <- clean_prices %>%
+relocate(quarter_only, .before = cena_wartosc_1m2) %>%
+mutate(log_price_sqm = log(cena_wartosc_1m2)) %>%
+relocate(log_price_sqm, .after = cena_wartosc_1m2)
 ```
 
 #### *3.1.2 Wage Data*
+Here we clean the wage data set and convert it to quarterly median wage.
 
+``` {r wage_cleaning, include = FALSE}
+# Removing missing Values and unnecessary columns
+clean_wage <- median_wage %>%
+select(-Code, -Name) %>%
+slice(-c(1, 2, 3, 4))
+
+#Wide to Long
+clean_wage <- clean_wage %>%
+pivot_longer(
+cols = everything(),
+names_to = "month",
+values_to = "median_wage"
+) %>%
+mutate(median_wage = readr::parse_number(median_wage))
+```
+
+``` {r wage_quarter, include = FALSE}
+
+# Convert wage median to quarterly median
+
+wage_quarterly <- clean_wage %>%
+mutate(
+quarter = case_when(
+month %in% c("January", "February", "March") ~ "q1",
+month %in% c("April", "May", "June")         ~ "q2",
+month %in% c("July", "August", "September")  ~ "q3",
+))
+wage_quarterly <- wage_quarterly %>%
+group_by(quarter) %>%
+summarise(
+median_wage_q = mean(median_wage, na.rm = TRUE),
+.groups = "drop"
+)
+```
+
+``` {r wage_log, include = FALSE}
+# Add log median wage quarterly
+wage_quarterly <- wage_quarterly %>%
+mutate(log_median_wage_q = log(median_wage_q))
+```
 
 #### *3.1.3 Density Data*
 
+Here we will explain cleaning steps for Density data set.
+
+``` {r density_cleaning, include = FALSE}
+# Clean Density data set
+# Cleaning the Polish letters and NAs from Density data set
+
+clean_density <- density %>%
+clean_names() %>%
+select(-code) %>%
+mutate(across(where(is.character),
+~ tolower(stri_trans_general(., "Latin-ASCII"))))%>%
+
+# remove missing values
+na.omit()
+
+# Erase first 2 rows and Distric 8 from the name
+
+clean_density <- clean_density %>%
+slice(-c(1, 2)) %>%                                   # remove first 2 rows
+mutate(
+name = str_remove(name, "\\s*-\\s*district\\s*\\(8\\)")
+)
+```
 
 ### 3.2 Data merging
+Here we merge the three cleaned datasets into one final dataset for analysis.
 
 
 
