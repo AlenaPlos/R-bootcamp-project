@@ -61,14 +61,27 @@ clean_prices <- clean_prices %>%
 
 
 ## Coordinates data type conversion and save
-streets_geo <- clean_prices %>%
-  distinct(ulica) %>%
-  mutate(address = paste0(ulica, ", Warsaw, Poland")) %>%
-  geocode(address = address,
-          method = "osm",
-          lat = latitude,
-          long = longitude)
 
+## Coordinates data type conversion and save
+if (!file.exists("streets_geo.rds")) {
+
+streets_geo <- clean_prices %>%
+distinct(ulica) %>%
+mutate(address = paste0(ulica, ", Warsaw, Poland")) %>%
+geocode(
+address = address,
+method = "osm",
+lat = latitude,
+long = longitude
+)
+
+saveRDS(streets_geo, "streets_geo.rds")
+}
+
+# Load saved geo data
+streets_geo <- readRDS("streets_geo.rds")
+
+# Clean Prices
 clean_prices <- clean_prices %>%
   left_join(streets_geo, by = "ulica")
 
