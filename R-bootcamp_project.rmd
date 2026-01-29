@@ -1,26 +1,16 @@
-<center>
-Luzern University of Applied Sciences and Arts
-------------------------------
-
- *Name of the project*
-===========================
-R Bootcamp
----------------------------
-W.MSCIDS_RB01.H2501
----------------------------
-Group Members:
----------------------------
-Alena Ploshchansky
----------------------------
-Rita Ahlborn
----------------------------
-Luzern, 2026-01-28
----------------------------
-</center>
-
-
-### Table of Contents
-
+---
+title: "Affordability of Residential Real Estate in Warsaw"
+subtitle: "R Bootcamp Project — W.MSCIDS\\_RB01.H2501"
+author:
+  - Alena Ploshchansky
+  - Rita Ahlborn
+date: "January 28, 2026"
+output:
+  pdf_document:
+    latex_engine: xelatex
+    toc: true
+    toc_depth: 2
+---
 
 
 ### 1. Introduction and Hypothesis
