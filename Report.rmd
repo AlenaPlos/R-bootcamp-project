@@ -31,7 +31,7 @@ January 28, 2026
 
 
 ## **2. Data Description**
-Sources and types of data will be explained here. how many collumns/rows, what kind of variables, etc.
+Sources and types of data will be explained here. how many columns/rows, what kind of variables, etc.
 
 ```{r libraries, include = FALSE}
 # Load required libraries
@@ -259,8 +259,14 @@ name = str_remove(name, "\\s*-\\s*district\\s*\\(8\\)")
 ### 3.2 Data merging
 Here we merge the three cleaned datasets into one final dataset for analysis.
 
-
-
+``` {r data_merge, include = FALSE}
+# Merging all datasets into one final dataset for analysis
+final_data <- clean_prices %>%
+left_join(clean_density, by = c("dzielnica" = "name")) %>%
+left_join(wage_quarterly, by = c("quarter_only" = "quarter"))
+# Check final data
+glimpse(final_data)
+```
 ---
 
 
