@@ -169,3 +169,67 @@ wage_quarterly <- wage_quarterly %>%
 # Add log median wage quarterly
 wage_quarterly <- wage_quarterly %>%
   mutate(log_median_wage_q = log(median_wage_q))
+
+
+# H2: Affordability by Vistula River bank (Warsaw)
+
+left_bank <- c(
+  "bemowo", "bielany", "mokotow", "ochota",
+  "srodmiescie", "ursynow", "wola",
+  "zoliborz", "wlochy", "ursus"
+)
+
+right_bank <- c(
+  "bialoleka", "praga-polnoc", "praga-poludnie",
+  "targowek", "rembertow", "wawer", "wesola"
+)
+
+# Add river bank to clean_prices
+clean_prices_h2 <- clean_prices %>%
+  mutate(
+    river_bank = case_when(
+      dzielnica %in% left_bank  ~ "Left bank",
+      dzielnica %in% right_bank ~ "Right bank",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  filter(!is.na(river_bank))
+
+#  Calculate average prices per quarter and river bank
+clean_prices_h2 <- clean_prices_h2 %>%
+  left_join(
+    wage_quarterly,
+    by = c("quarter_only" = "quarter")
+  )
+
+clean_prices_h2 <- clean_prices_h2 %>%
+  mutate(
+    log_affordability = log_price_sqm - log(median_wage_q)
+  )
+
+#Descriptive check
+clean_prices_h2 %>%
+  group_by(river_bank) %>%
+  summarise(
+    mean_log_affordability = mean(log_affordability, na.rm = TRUE),
+    n = n()
+  )
+
+# Boxplot visualization - Maybe we change the style?
+
+ggplot(clean_prices_h2,
+       aes(x = river_bank, y = log_affordability)) +
+  geom_boxplot() +
+  labs(
+    title = "Housing affordability by Vistula River bank",
+    x = "River bank",
+    y = "Log affordability (price per sqm / income)"
+  ) +
+  theme_minimal()
+
+# T-test H2 - Needed?
+t.test(
+  log_affordability ~ river_bank,
+  data = clean_prices_h2,
+  alternative = "greater"
+)

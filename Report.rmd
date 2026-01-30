@@ -291,9 +291,45 @@ Neighborhoods with higher density show lower prices per sqm than neighborhoods w
 
 #### *4.2.2 Hypothesis 2*
 
-Affordability of residential real estate on the left bank of the Vistula River in Warsaw is lower in comparison to right bank neighborhoods.
+The Vistula River represents a major spatial divide within Warsaw. Historically, the left bank has concentrated economic activity, central business districts, and higher-income neighborhoods, while the right bank has been more residential and, in some cases, less developed. These differences may translate into systematic affordability gaps between the two sides of the river.
+
+We test whether higher population density is associated with lower residential prices per square meter.
+
 
 1. Affordability calculation
+``` {r affordability, include = FALSE}
+left_bank <- c(
+  "bemowo", "bielany", "mokotow", "ochota",
+  "srodmiescie", "ursynow", "wola",
+  "zoliborz", "wlochy", "ursus"
+)
+
+right_bank <- c(
+  "bialoleka", "praga-polnoc", "praga-poludnie",
+  "targowek", "rembertow", "wawer", "wesola"
+)
+
+clean_prices_h2 <- clean_prices %>%
+  mutate(
+    river_bank = case_when(
+      dzielnica %in% left_bank  ~ "Left bank",
+      dzielnica %in% right_bank ~ "Right bank",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  filter(!is.na(river_bank))
+
+clean_prices_h2 <- clean_prices_h2 %>%
+  left_join(
+    wage_quarterly,
+    by = c("quarter_only" = "quarter")
+  )
+
+clean_prices_h2 <- clean_prices_h2 %>%
+  mutate(
+    log_affordability = log_price_sqm - log(median_wage_q)
+  )
+
 2. T-test
 3. Visuals: boxplot of affordability by bank
 
