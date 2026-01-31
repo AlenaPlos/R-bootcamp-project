@@ -488,16 +488,23 @@ Neighborhoods with higher density show lower prices per sqm than neighborhoods w
 1. Simple linear regression: log_price_sqm ~ log_density
 2. Map ??
 
+<br>
 
-#### *4.2.2 Hypothesis 2*
+#### *4.2.2 Hypothesis 2:*
+#### *Affordability of residential real estate on the left bank of the Vistula River in Warsaw is lower in comparison to right bank neighborhoods*
 
+<br>
 The Vistula River represents a major spatial divide within Warsaw. Historically, the left bank has concentrated economic activity, central business districts, and higher-income neighborhoods, while the right bank has been more residential and, in some cases, less developed. These differences may translate into systematic affordability gaps between the two sides of the river.
 
 We test whether higher population density is associated with lower residential prices per square meter.
 
+<br>
 
-1. Affordability calculation
-```{r affordability, include = FALSE}
+##### *1. Affordability calculation*
+
+We define housing affordability as the log difference between residential price per square meter and median wage. Districts are classified by river bank before computing affordability.
+
+```{r h2_affordability_exec, include = FALSE}
 left_bank <- c(
   "bemowo", "bielany", "mokotow", "ochota",
   "srodmiescie", "ursynow", "wola",
@@ -531,9 +538,157 @@ clean_prices_h2 <- clean_prices_h2 %>%
   )
 ```
 
-2. T-test
-3. Visuals: boxplot of affordability by bank
 
+<details>
+<summary><b>Affordability calculation – R code</b></summary>
+
+```r
+Definition of left and right bank districts and construction of the affordability measure
+
+left_bank <- c(
+  "bemowo", "bielany", "mokotow", "ochota",
+  "srodmiescie", "ursynow", "wola",
+  "zoliborz", "wlochy", "ursus"
+)
+
+right_bank <- c(
+"bialoleka", "praga-polnoc", "praga-poludnie",
+"targowek", "rembertow", "wawer", "wesola"
+)
+
+
+Merge of river bank info and affordability calculation
+
+clean_prices_h2 <- clean_prices %>%
+mutate(
+river_bank = case_when(
+dzielnica %in% left_bank  ~ "Left bank",
+dzielnica %in% right_bank ~ "Right bank",
+TRUE ~ NA_character_
+)
+) %>%
+filter(!is.na(river_bank))
+
+
+Calculate average prices per quarter and river bank
+
+clean_prices_h2 <- clean_prices_h2 %>%
+left_join(
+wage_quarterly,
+by = c("quarter_only" = "quarter")
+)
+
+Affordability log calculation
+
+We define affordability in logarithmic terms to express housing prices relative to income levels, allowing for proportional comparisons and reducing the influence of extreme values.
+
+clean_prices_h2 <- clean_prices_h2 %>%
+mutate(
+log_affordability = log_price_sqm - log(median_wage_q)
+)
+```
+</details>
+<br>
+
+##### *2. T-test Affordability*
+
+To test Hypothesis 2, a one-sided two-sample t-test is applied to evaluate whether the mean log-affordability differs between the left and right banks of the Vistula River. The test assesses whether the mean log-affordability on the left bank is significantly higher than on the right bank, which would imply lower affordability on the left bank.
+
+**Null hypothesis (H₀):**
+Mean log-affordability is equal across the left and right river banks.
+
+**Alternative hypothesis (H₁):**
+Mean log-affordability is higher on the left bank than on the right bank, implying lower affordability on the left bank.
+
+<br>
+
+```{r t-test, include = FALSE}
+t.test(
+  log_affordability ~ river_bank,
+  data = clean_prices_h2,
+  alternative = "greater"
+)
+```
+
+```{r ttest_table, echo=FALSE}
+library(dplyr)
+library(knitr)
+library(kableExtra)
+
+tt <- t.test(log_affordability ~ river_bank,
+             data = clean_prices_h2,
+             alternative = "greater")
+
+tt_tbl <- tibble::tibble(
+  Metric = c("t statistic", "df", "p-value", "95% CI (lower)", "95% CI (upper)",
+             "Mean (Left bank)", "Mean (Right bank)"),
+  Value = c(
+    unname(tt$statistic),
+    unname(tt$parameter),
+    tt$p.value,
+    tt$conf.int[1],
+    tt$conf.int[2],
+    unname(tt$estimate[1]),
+    unname(tt$estimate[2])
+  )
+) %>%
+  mutate(
+    Value = if_else(
+      Metric == "p-value",
+      format(Value, scientific = TRUE, digits = 3),
+      format(round(as.numeric(Value), 4), nsmall = 4)
+    )
+  )
+
+tt_tbl %>%
+  kable(
+    caption = "T-test results: log-affordability by river bank",
+    col.names = c("Statistics", "Value"),
+    align = c("l", "r")
+  ) %>%
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover")) %>%
+  column_spec(1, bold = TRUE) %>%
+  row_spec(0, bold = TRUE)
+```
+
+The results of the one-sided t-test indicate a statistically significant difference in residential affordability between the two river banks. The mean log-affordability on the left bank is higher than on the right bank (0.507 vs. 0.387), indicating lower affordability on the left bank. The null hypothesis of equal mean affordability is rejected at conventional significance levels (p < 0.001). These findings support Hypothesis 2, suggesting that residential real estate on the left bank of the Vistula River is less affordable relative to income than on the right bank.
+
+<br>
+<br>
+<details>
+<summary><b>Affordability T-Test – R code</b></summary>
+<br>
+```r
+t.test(
+  log_affordability ~ river_bank,
+  data = clean_prices_h2,
+  alternative = "greater"
+)
+```
+</details>
+<br>
+
+
+##### *3. Visuals:*
+##### *Boxplot of affordability by bank*
+
+To visually assess differences in residential affordability between the two river banks, a boxplot of log-affordability by river bank is presented below.
+<br>
+<br>
+![Housing affordability by Vistula River bank](Rplot_Affordability_H2.png){width=90%}
+<br>
+<br>
+The boxplot indicates that the distribution of log-affordability is shifted upwards for the left bank relative to the right bank. The median affordability is higher on the left bank, and the interquartile range is also slightly wider, suggesting greater dispersion in affordability outcomes. These visual differences are consistent with the results of the one-sided t-test, which found a statistically significant difference in mean affordability between the two river banks.
+<br>
+<br>
+
+##### *Mean + 95% CI plot*
+<br>
+Figure below presents the mean log-affordability by river bank together with 95% confidence intervals. The figure confirms that average affordability is lower on the left bank, with non-overlapping confidence intervals supporting the statistical significance of the difference.
+<br>
+<br>
+![Mean housing affordability by Vistula River bank](data/shapefiles/Rplot_Mean_CI.png){width=90%}
+<br>
 
 #### *4.2.3 Hypothesis 3*
 

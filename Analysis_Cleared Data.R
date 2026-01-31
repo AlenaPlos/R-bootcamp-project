@@ -233,3 +233,43 @@ t.test(
   data = clean_prices_h2,
   alternative = "greater"
 )
+
+# Mean + CI calculation
+
+affordability_summary <- clean_prices_h2 %>%
+  group_by(river_bank) %>%
+  summarise(
+    mean_affordability = mean(log_affordability, na.rm = TRUE),
+    sd_affordability   = sd(log_affordability, na.rm = TRUE),
+    n                  = n(),
+    se                 = sd_affordability / sqrt(n),
+    ci_lower           = mean_affordability - qt(0.975, df = n - 1) * se,
+    ci_upper           = mean_affordability + qt(0.975, df = n - 1) * se
+  )
+
+ggplot(affordability_summary,
+       aes(x = river_bank, y = mean_affordability)) +
+  geom_point(size = 3) +
+  geom_errorbar(
+    aes(ymin = ci_lower, ymax = ci_upper),
+    width = 0.15,
+    linewidth = 0.8
+  ) +
+  labs(
+    title = "Mean housing affordability by Vistula River bank",
+    x = "River bank",
+    y = "Mean log affordability (price per sqm / income)"
+  ) +
+  theme_minimal()
+
+#H3: Building age and affordability
+
+#ANOVA test
+anova_h3 <- aov(log_affordability ~ building_age_group, data = clean_prices_h2)
+summary(anova_h3)
+
+# Post-hoc Tukey test
+tukey_h3 <- TukeyHSD(anova_h3)
+print(tukey_h3)
+
+# Boxplot visualization H3
