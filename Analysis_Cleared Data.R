@@ -272,4 +272,30 @@ summary(anova_h3)
 tukey_h3 <- TukeyHSD(anova_h3)
 print(tukey_h3)
 
-# Boxplot visualization H3
+# 1) Summary table with mean and 95% CI
+h3_summary <- clean_prices_h2 %>%
+  filter(!is.na(building_age_group), !is.na(log_affordability)) %>%
+  group_by(building_age_group) %>%
+  summarise(
+    n = n(),
+    mean_log_aff = mean(log_affordability),
+    sd_log_aff   = sd(log_affordability),
+    se           = sd_log_aff / sqrt(n),
+    t_crit       = qt(0.975, df = n - 1),
+    ci_lower     = mean_log_aff - t_crit * se,
+    ci_upper     = mean_log_aff + t_crit * se,
+    .groups = "drop"
+  )
+
+# 2) Plot
+p_h3_mean_ci <- ggplot(h3_summary, aes(x = building_age_group, y = mean_log_aff)) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.15, linewidth = 0.8) +
+  labs(
+    title = "Mean log-affordability by building age group",
+    x = "Building age group",
+    y = "Mean log affordability (price per sqm / income)"
+  ) +
+  theme_minimal()
+
+p_h3_mean_ci

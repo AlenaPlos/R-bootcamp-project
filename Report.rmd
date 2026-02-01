@@ -654,7 +654,6 @@ tt_tbl %>%
 The results of the one-sided t-test indicate a statistically significant difference in residential affordability between the two river banks. The mean log-affordability on the left bank is higher than on the right bank (0.507 vs. 0.387), indicating lower affordability on the left bank. The null hypothesis of equal mean affordability is rejected at conventional significance levels (p < 0.001). These findings support Hypothesis 2, suggesting that residential real estate on the left bank of the Vistula River is less affordable relative to income than on the right bank.
 
 <br>
-<br>
 <details>
 <summary><b>Affordability T-Test – R code</b></summary>
 <br>
@@ -691,11 +690,130 @@ Figure below presents the mean log-affordability by river bank together with 95%
 <br>
 
 #### *4.2.3 Hypothesis 3*
+#### *Affordability of residential real estate differs systematically across building age groups in Warsaw*
 
-Newer buildings are less affordable than older and very old buildings.
+Newer residential buildings are typically associated with higher construction standards, modern amenities, and stronger market demand, potentially leading to higher prices relative to income. For this analysis, buildings are grouped by construction period into very old (pre-1960), old (1960–2010), and new (2010–2025) categories. The hypothesis examines whether residential affordability differs systematically across these building age groups.
+<br>
+<br>
 
-1. T-test
-2. bla bla
+##### *1. ANOVA + Tukey Test*
+
+A one-way analysis of variance (ANOVA) is applied to test whether mean log-affordability differs across the defined building age groups. The null hypothesis states that mean affordability is equal across all groups, while the alternative hypothesis posits that at least one group exhibits a different mean log-affordability.
+Since the ANOVA test only indicates whether a difference exists but does not identify which groups differ, a Tukey Honestly Significant Difference (HSD) post-hoc test is subsequently conducted. The Tukey test performs pairwise comparisons between groups while controlling for multiple testing, allowing for the identification of statistically significant differences in mean log-affordability across building age categories.
+
+**Null hypothesis (H₀):**
+Mean log-affordability is equal across all building age groups.
+
+**Alternative hypothesis (H₁):**
+At least one building age group exhibits a different mean log-affordability.
+<br>
+<br>
+
+```{r h3_anova_tukey_tables, echo=FALSE, results='asis', message=FALSE, warning=FALSE}
+library(dplyr)
+library(broom)
+library(kableExtra)
+library(tibble)
+
+# --- ANOVA (H3) ---
+anova_h3 <- aov(log_affordability ~ building_age_group, data = clean_prices_h2)
+
+# Extract only the row for the factor (not residuals)
+anova_row <- broom::tidy(anova_h3) %>%
+  filter(term == "building_age_group") %>%
+  slice(1)
+
+anova_tbl_df <- tibble(
+  Statistics = c("Df (between groups)", "Df (residuals)", "F statistic", "p-value"),
+  Value = c(
+    anova_row$df,
+    anova_h3$df.residual,
+    anova_row$statistic,
+    anova_row$p.value
+  )
+) %>%
+  mutate(
+    Value = ifelse(
+      Statistics == "p-value",
+      format(as.numeric(Value), scientific = TRUE, digits = 3),
+      round(as.numeric(Value), 4)
+    )
+  )
+
+anova_table <- anova_tbl_df %>%
+  kable(
+    caption = "ANOVA results: log-affordability by building age group",
+    col.names = c("Statistics", "Value"),
+    align = c("l", "r"),
+    escape = FALSE
+  ) %>%
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover")) %>%
+  column_spec(1, bold = TRUE)
+
+# --- Tukey (H3) ---
+tukey_h3 <- TukeyHSD(anova_h3)
+
+tukey_df <- broom::tidy(tukey_h3) %>%
+  filter(term == "building_age_group") %>%
+  transmute(
+    Comparison = contrast,
+    `Mean diff` = round(estimate, 4),
+    `CI lower`  = round(conf.low, 4),
+    `CI upper`  = round(conf.high, 4),
+    `p adj`     = format(adj.p.value, scientific = TRUE, digits = 3)
+  )
+
+tukey_table <- tukey_df %>%
+  kable(
+    caption = "Tukey HSD pairwise comparisons",
+    align = "lrrrr",
+    escape = FALSE
+  ) %>%
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover")) %>%
+  column_spec(1, bold = TRUE)
+
+# --- Side-by-side layout ---
+cat(
+  '<div style="display:flex; gap:40px; align-items:flex-start;">',
+  '<div style="flex:1;">', as.character(anova_table), '</div>',
+  '<div style="flex:1;">', as.character(tukey_table), '</div>',
+  '</div>'
+)
+```
+
+
+The ANOVA results indicate a statistically significant difference in mean log-affordability across the groups (p < 0.001). Post-hoc Tukey HSD comparisons show that newer buildings exhibit significantly higher log-affordability than older buildings, indicating lower affordability for newer housing stock. However, the difference in mean log-affordability between newer and very old buildings is not statistically significant. In addition, very old buildings display significantly higher log-affordability compared to old buildings. Overall, these results suggest that affordability varies non-monotonically across groups, with newer and very old buildings being less affordable relative to older housing stock.
+
+<br>
+
+<details>
+<summary><b>Affordability by building age ANOVA & Tukey Test – R code</b></summary>
+<br>
+
+```r
+ANOVA test
+
+anova_h3 <- aov(log_affordability ~ building_age_group, data = clean_prices_h2)
+summary(anova_h3)
+
+
+Tukey HSD post-hoc test
+
+tukey_h3 <- TukeyHSD(anova_h3)
+print(tukey_h3)
+```
+</details>
+<br>
+
+
+#### *2. Boxplot of affordability by building age group*
+
+To visually assess differences in residential affordability across building age groups, a boxplot of log-affordability by building age category is presented below.
+<br>
+<br>
+![Housing affordability by building age group](Rplot_Building_Age_h3.png){width=90%}
+<br>
+<br>
 
 ---
 
