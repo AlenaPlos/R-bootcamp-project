@@ -783,7 +783,6 @@ cat(
 
 
 The ANOVA results indicate a statistically significant difference in mean log-affordability across the groups (p < 0.001). Post-hoc Tukey HSD comparisons show that newer buildings exhibit significantly higher log-affordability than older buildings, indicating lower affordability for newer housing stock. However, the difference in mean log-affordability between newer and very old buildings is not statistically significant. In addition, very old buildings display significantly higher log-affordability compared to old buildings. Overall, these results suggest that affordability varies non-monotonically across groups, with newer and very old buildings being less affordable relative to older housing stock.
-
 <br>
 
 <details>
@@ -811,11 +810,13 @@ print(tukey_h3)
 To visually assess differences in residential affordability across building age groups, a boxplot of log-affordability by building age category is presented below.
 <br>
 <br>
-![Housing affordability by building age group](Rplot_Building_Age_h3.png){width=90%}
+![Housing affordability by Building Age](Rplot_Building_Age_h3.png){width=90%}
 <br>
+<br>
+<br>
+The figure shows mean log-affordability and 95% confidence intervals by building age group. Newer buildings display the highest average log-affordability, indicating lower affordability relative to income, while older buildings are the most affordable. The confidence intervals support the statistically significant differences identified by the ANOVA and Tukey post-hoc tests.
 <br>
 
----
 
 
 ## **5. Discussion and Limitations**
