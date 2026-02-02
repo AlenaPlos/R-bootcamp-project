@@ -16,7 +16,7 @@ Lucerne University of Applied Sciences and Arts
 
 January 28, 2026
 
----
+
 
 </center>
 
@@ -26,10 +26,14 @@ p {
 }
 
 center p {
-  text-align: center;
-}
+  text-align: center;}
+```
 
+---
 
+```{r setup, include=FALSE}
+knitr::opts_knit$set(root.dir = ".")
+```
 
 ## **1. Introduction and Hypothesis**
 
@@ -197,7 +201,7 @@ mutate(quarter_only = str_extract(data_transakcji_wyceny, "q[1-4]")) %>% # we le
 select(-data_transakcji_wyceny)
 ```
 
-``` {r prices_log, include = FALSE}
+```{r prices_price_sqm, include = FALSE}
 clean_prices <- clean_prices %>%
 relocate(quarter_only, .before = cena_wartosc_1m2) %>%
 mutate(log_price_sqm = log(cena_wartosc_1m2)) %>%
@@ -209,6 +213,7 @@ Here we clean the wage data set and convert it to quarterly median wage.
 
 ``` {r wage_cleaning, include = FALSE}
 # Removing missing Values and unnecessary columns
+
 clean_wage <- median_wage %>%
 select(-Code, -Name) %>%
 slice(-c(1, 2, 3, 4))
@@ -262,7 +267,6 @@ mutate(across(where(is.character),
 na.omit()
 
 # Erase first 2 rows and Distric 8 from the name
-
 clean_density <- clean_density %>%
 slice(-c(1, 2)) %>%                                   # remove first 2 rows
 mutate(
@@ -278,8 +282,14 @@ Here we merge the three cleaned datasets into one final dataset for analysis.
 final_data <- clean_prices %>%
 left_join(clean_density, by = c("dzielnica" = "name")) %>%
 left_join(wage_quarterly, by = c("quarter_only" = "quarter"))
-# Check final data
-glimpse(final_data)
+```
+
+``` {r data_final_check, include = FALSE}`
+# Check final data for type of variables and transform where needed
+str(final_data)
+final_data <- final_data %>%
+mutate(
+population_per_1_km2 = as.numeric(population_per_1_km2))
 ```
 ``` {r final_data, include = FALSE}
 # Change the names of neighborhoods to original ones with polish letters
@@ -511,19 +521,57 @@ ggplot(price_map_data) +
 ```
 
 #### *4.1.2 Income and Population Density Data*
-Income levels and population density are included as **contextual variables** that capture differences in purchasing power and urban structure across Warsaw’s districts. As both variables are observed only at aggregated spatial levels, their descriptive analysis focuses on central tendencies and relative differences between districts rather than detailed distributional characteristics. These summaries provide background context for the subsequent hypothesis-driven analysis, where the relationship between density, income, and residential prices is examined in more detail.
 
-```{r wage_density_analysis, echo = FALSE}
+***WHAT WE WANT TO HAVE HERE??***
+
+
 
 
 ### 4.2 Hypotheses
 
 #### *4.2.1 Hypothesis 1*
 
-Neighborhoods with higher density show lower prices per sqm than neighborhoods with lower density
+Population density is often discussed as an important factor shaping housing affordability. From a theoretical perspective, higher density may be associated with more intensive land use and a larger housing supply, which could exert downward pressure on prices per square meter. At the same time, dense areas are frequently located in central or well-connected parts of the city, where demand is strong and prices tend to be higher. Based on this ambiguity, the following hypothesis is tested:
 
-1. Simple linear regression: log_price_sqm ~ log_density
-2. Map ??
+##### *H1: Neighborhoods with higher population density exhibit lower residential prices per square meter than neighborhoods with lower density.*
+
+The corresponding null hypothesis states that population density does not lead to lower prices:
+
+##### *H0: Neighborhoods with higher population density **do not** exhibit lower residential prices per square meter than neighborhoods with lower density.*
+
+To evaluate this relationship, a log–log linear regression is estimated using district-level averages.
+
+```{r h1_regression, echo=FALSE}
+# Linear regression of price per sqm on population density
+h1_data <- final_data %>%
+  group_by(dzielnica) %>%
+  summarise(
+    avg_price_sqm = mean(cena_wartosc_1m2, na.rm = TRUE),
+    density = first(readr::parse_number(as.character(population_per_1_km2))),
+    .groups = "drop") %>%
+  mutate(
+    log_avg_price_sqm = log(avg_price_sqm),
+    log_density = log(density))
+```
+
+```{r h1_plot, echo=FALSE, fig.align="center", out.width="70%", message=FALSE}
+ggplot(h1_data, aes(x = log_density, y = log_avg_price_sqm)) +
+  geom_point(
+    color = "#7c9ecb",
+    size = 3,
+    alpha = 0.85) +
+  geom_smooth(
+    method = "lm",
+    se = FALSE,
+    color = "#fc8d59",
+    linewidth = 1.2) +
+  labs(
+    title = "Relationship Between Population Density and Housing Prices",
+    subtitle = "Log–log scale, district-level averages",
+    x = "Population Density (pp/km²; log)",
+    y = "Average Price (PLN/km²; log)") +
+  theme_minimal()
+```
 
 <br>
 
@@ -579,7 +627,7 @@ clean_prices_h2 <- clean_prices_h2 %>%
 <details>
 <summary><b>Affordability calculation – R code</b></summary>
 
-```r
+``` r
 Definition of left and right bank districts and construction of the affordability measure
 
 left_bank <- c(
