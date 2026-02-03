@@ -31,6 +31,10 @@ center p {
 
 ---
 
+![*Warsaw Skyline*](fototapeta-panoramiczna-warszawa-z-lotu-ptaka-5.jpg "Source: Lunares.pl"){width=100%}
+
+---
+
 ```{r setup, include=FALSE}
 knitr::opts_knit$set(root.dir = ".")
 ```
@@ -572,7 +576,20 @@ ggplot(h1_data, aes(x = log_density, y = log_avg_price_sqm)) +
     y = "Average Price (PLN/km²; log)") +
   theme_minimal()
 ```
+The model relates the logarithm of average residential prices per square meter to the logarithm of population density at the district level. Following formula is estimated:
+$$
+\log(\text{Price}_{i}) = \alpha + \beta \log(\text{Density}_{i}) + \varepsilon_{i}
+$$
 
+The scatter plot and the fitted regression line indicate a positive relationship between population density and average residential prices per square meter at the district level. Districts with higher population density tend to exhibit higher, rather than lower, housing prices. This pattern suggests that in Warsaw, dense neighborhoods are often located in areas with strong demand, good accessibility, and a high concentration of urban amenities, which outweigh potential price-reducing effects of higher housing supply. As a result, the empirical evidence from the log–log regression **does not support Hypothesis H1**. Instead, the observed relationship is more consistent with the null hypothesis, indicating that higher population density is not associated with lower residential prices per square meter. At the same time, the dispersion of points around the regression line highlights substantial heterogeneity across districts, implying that population density alone cannot fully explain price differences and that other location-specific factors play an important role.
+
+
+### **INTERACTIVE MAP PART**
+veyr complex but nice to have if we have time
+
+
+
+RITA'S PART
 <br>
 
 #### *4.2.2 Hypothesis 2:*
