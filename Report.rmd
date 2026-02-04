@@ -16,10 +16,28 @@ Lucerne University of Applied Sciences and Arts
 
 January 28, 2026
 
----
+
 
 </center>
 
+```{css, echo=FALSE}
+p {
+  text-align: justify;
+}
+
+center p {
+  text-align: center;}
+```
+
+---
+
+![*Warsaw Skyline*](fototapeta-panoramiczna-warszawa-z-lotu-ptaka-5.jpg "Source: Lunares.pl"){width=100%}
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_knit$set(root.dir = ".")
+```
 
 ## **1. Introduction and Hypothesis**
 
@@ -54,6 +72,7 @@ library(rmarkdown)
 
 # Libraries for visualizations
 library(RColorBrewer)
+library(scales)
 
 # Libraries for maps
 library(ggmap)
@@ -61,7 +80,6 @@ library(sf)
 library(rlang)
 
 # To be updated ...
-
 ```
 
 
@@ -187,7 +205,7 @@ mutate(quarter_only = str_extract(data_transakcji_wyceny, "q[1-4]")) %>% # we le
 select(-data_transakcji_wyceny)
 ```
 
-``` {r prices_log, include = FALSE}
+```{r prices_price_sqm, include = FALSE}
 clean_prices <- clean_prices %>%
 relocate(quarter_only, .before = cena_wartosc_1m2) %>%
 mutate(log_price_sqm = log(cena_wartosc_1m2)) %>%
@@ -199,6 +217,7 @@ Here we clean the wage data set and convert it to quarterly median wage.
 
 ``` {r wage_cleaning, include = FALSE}
 # Removing missing Values and unnecessary columns
+
 clean_wage <- median_wage %>%
 select(-Code, -Name) %>%
 slice(-c(1, 2, 3, 4))
@@ -214,22 +233,18 @@ mutate(median_wage = readr::parse_number(median_wage))
 ```
 
 ``` {r wage_quarter, include = FALSE}
-
 # Convert wage median to quarterly median
-
 wage_quarterly <- clean_wage %>%
 mutate(
 quarter = case_when(
 month %in% c("January", "February", "March") ~ "q1",
 month %in% c("April", "May", "June")         ~ "q2",
-month %in% c("July", "August", "September")  ~ "q3",
-))
+month %in% c("July", "August", "September")  ~ "q3",))
 wage_quarterly <- wage_quarterly %>%
 group_by(quarter) %>%
 summarise(
 median_wage_q = mean(median_wage, na.rm = TRUE),
-.groups = "drop"
-)
+.groups = "drop")
 ```
 
 ``` {r wage_log, include = FALSE}
@@ -256,7 +271,6 @@ mutate(across(where(is.character),
 na.omit()
 
 # Erase first 2 rows and Distric 8 from the name
-
 clean_density <- clean_density %>%
 slice(-c(1, 2)) %>%                                   # remove first 2 rows
 mutate(
@@ -272,8 +286,14 @@ Here we merge the three cleaned datasets into one final dataset for analysis.
 final_data <- clean_prices %>%
 left_join(clean_density, by = c("dzielnica" = "name")) %>%
 left_join(wage_quarterly, by = c("quarter_only" = "quarter"))
-# Check final data
-glimpse(final_data)
+```
+
+``` {r data_final_check, include = FALSE}`
+# Check final data for type of variables and transform where needed
+str(final_data)
+final_data <- final_data %>%
+mutate(
+population_per_1_km2 = as.numeric(population_per_1_km2))
 ```
 ``` {r final_data, include = FALSE}
 # Change the names of neighborhoods to original ones with polish letters
@@ -303,13 +323,14 @@ TRUE ~ dzielnica))
 
 
 ## **4. Data Analysis**
-
+The empirical analysis builds on the prepared dataset to explore patterns in residential real estate affordability in Warsaw. The analysis combines numerical summaries and visual representations to examine both the distribution and spatial variation of key variables. These exploratory insights provide context for understanding how prices, income levels, and urban structure differ across the city and how these differences shape affordability outcomes.
 
 ### 4.1 Descriptive Statistics
+The descriptive analysis presents the main characteristics of the data using formats tailored to the nature of each variable. Transaction-level price data allow for a detailed examination of distributional properties, while wage and population density data, observed at aggregated spatial levels, are better described through levels and spatial patterns. Together, these descriptive elements offer an initial empirical overview of affordability-related dynamics within Warsaw.
 
-#### *4.1.1 Summary Statistics*
-Here we present summary statistics of the main variables used in the analysis.
-First we present summary statistics for price data.
+#### *4.1.1 Transaction Price Data*
+Residential prices per square meter represent the **central variable** of interest in the analysis and therefore receive a more detailed descriptive treatment. Summary statistics are used to illustrate typical price levels, variability, and the presence of extreme values, while graphical representations highlight the overall shape of the price distribution. This allows for an initial assessment of market heterogeneity and provides context for the district-level comparisons presented later in the analysis.
+
 ```{r summary_stats_prices, include = FALSE}
 # First we calculate summary statistics for price per square meter
 summary_stats <- final_data %>%
@@ -319,7 +340,19 @@ median_price_sqm = median(cena_wartosc_1m2, na.rm = TRUE),
 sd_price_sqm = sd(cena_wartosc_1m2, na.rm = TRUE),
 min_price_sqm = min(cena_wartosc_1m2, na.rm = TRUE),
 max_price_sqm = max(cena_wartosc_1m2, na.rm = TRUE))
+
+# Clean version for report
+summary_stats_fmt <- summary_stats %>%
+  mutate(
+    avg_price_sqm = scales::number(avg_price_sqm, big.mark = " ", decimal.mark = ","),
+    median_price_sqm = scales::number(median_price_sqm, big.mark = " ", decimal.mark = ","),
+    sd_price_sqm = scales::number(sd_price_sqm, big.mark = " ", decimal.mark = ","),
+    min_price_sqm = scales::number(min_price_sqm, big.mark = " ", decimal.mark = ","),
+    max_price_sqm = scales::number(max_price_sqm, big.mark = " ", decimal.mark = ","))
 ```
+The summary statistics describe residential transaction prices expressed in Polish zloty per square meter (PLN/m²) and provide an overview of typical price levels and dispersion in the Warsaw housing market. The **mean price** amounts to approximately **`r summary_stats_fmt$avg_price_sqm` PLN/m²**, while the median is slightly lower at **`r summary_stats_fmt$median_price_sqm` PLN/m²**, indicating that higher-priced observations increase the average relative to the typical transaction. The difference between the mean and median suggests a **right-skewed price distribution**, where a limited number of very high-priced dwellings—often associated with particularly attractive locations or specific market segments. The standard deviation of **`r summary_stats_fmt$sd_price_sqm` PLN/m²** points to substantial variability in prices across transactions.
+
+The observed price range, spanning from **`r summary_stats_fmt$min_price_sqm` PLN/m²** to **`r summary_stats_fmt$max_price_sqm` PLN/m²**, highlights pronounced heterogeneity within the market, reflecting strong differences in location, neighborhood characteristics, and housing quality. Overall, these statistics indicate that the median price provides a more representative measure of typical affordability conditions, while the mean captures the influence of the upper tail of the price distribution.
 
 ```{r stats_prices_table, echo = FALSE}
 # We format the summary statistics into a table with renamed columns
@@ -336,6 +369,17 @@ stats_prices_table <- summary_stats %>%
     values_to = "Value") %>%
   mutate(Value = round(Value, 2)) # Round values to 2 decimal places
 
+
+# Custom function to format numbers in European style
+stats_prices_table <- stats_prices_table %>%
+  mutate(
+    Value = formatC(
+      as.numeric(Value),
+      format = "f",
+      digits = 2,
+      big.mark = " ",
+      decimal.mark = ","))
+
 # Display the table using kable function
 stats_prices_table %>%
   kable(
@@ -351,10 +395,11 @@ stats_prices_table %>%
   column_spec(1, width = "220px") %>%
   column_spec(2, width = "140px")
 ```
+##### **Distribution of Prices per Square Meter**
 
-#### Distribution of prices per sqm
-THIS PART IS NOT READY - TO BE UPDATED...
-```{r distribution_prices, include = FALSE}
+The distribution of residential prices per square meter in Warsaw is *right-skewed*, indicating the presence of a relatively small number of very high-priced observations. The mean price exceeds the median, which confirms the positive skewness of the distribution. Most observations are concentrated within one standard deviation around the mean, while a long right tail reflects "premium" properties with substantially higher prices per square meter. This suggests that average prices are influenced by high-end segments of the market, whereas the median better represents typical transaction values.
+
+```{r distribution_prices, echo = FALSE, fig.align="center", out.width="70%"}
 # Extract summary statistics for plotting
 avg_price_sqm <- mean(final_data$cena_wartosc_1m2, na.rm = TRUE)
 median_price_sqm <- median(final_data$cena_wartosc_1m2, na.rm = TRUE)
@@ -362,47 +407,48 @@ sd_price_sqm <- sd(final_data$cena_wartosc_1m2, na.rm = TRUE)
 
 ggplot(final_data, aes(x = cena_wartosc_1m2)) +
   geom_histogram(
+    aes(y = after_stat(density)),
     bins = 40,
-    fill = "#fdae61",
+    fill = "#7c9ecb",
     color = "white",
-  alpha = 0.9) +
+    alpha = 0.85) +
+  geom_density(
+    color = "#fc8d59",
+    linewidth = 1.2) +
   # Median
   geom_vline(
     xintercept = median_price_sqm,
     linetype = "solid",
-    color = "grey90",
-    linewidth = 1 ) +
+    color = "#fee090",
+    linewidth = 0.9 ) +
   # Mean
-    geom_vline(
+  geom_vline(
     xintercept = avg_price_sqm,
     linetype = "dashed",
-    color = "grey30",
-    linewidth = 1) +
-    # Standard Deviation +-1
-    geom_vline(
-    xintercept = avg_price_sqm + sd_price_sqm,
+    color = "#fee090",
+    linewidth = 0.6) +
+  # ±1 Standard Deviation
+  geom_vline(
+    xintercept = c(avg_price_sqm - sd_price_sqm,
+                   avg_price_sqm + sd_price_sqm),
     linetype = "dotted",
-    color = "grey50",
-    linewidth = 1) +
-    geom_vline(
-    xintercept = avg_price_sqm - sd_price_sqm,
-    linetype = "dotted",
-    color = "grey50",
-    linewidth = 1) +
+    color = "#fee090",
+    linewidth = 0.8) +
+  # Labels and theme
   labs(
     title = "Distribution of Residential Prices per Square Meter",
-    subtitle = "Mean (dashed), median (solid),
-    and ±1 standard deviation (dotted)",
+    subtitle = "Mean (dashed), Median (solid), and ±1 Standard Deviation (dotted)",
     x = "Price (PLN/m²)",
-    y = "Count") +
+    y = "Relative Frequency") +
   theme_minimal()
 ```
 
+##### **Distribution of Prices per Square Meter by District**
 
+The map reveals pronounced **spatial disparities** in residential prices per square meter across Warsaw’s districts. The highest median prices are concentrated in the **city center**, with *Śródmieście* clearly standing out as the most expensive district, reflecting its centrality, concentration of economic activity, and access to urban amenities. Beyond the city core, *Wilanów* emerges as a notable **high-price district** despite its more peripheral location. This suggests that **price levels are not driven by centrality alone**, but also by housing quality, recent development patterns, and neighborhood prestige, which are characteristic of Wilanów’s predominantly modern and high-standard residential stock. In contrast, *Mokotów*, while still relatively expensive, exhibits lower median prices than Wilanów, highlighting **heterogeneity** even among traditionally high-value districts.
 
-#### *4.1.2 Distribution and Visualization*
+Lower median prices are observed in outer districts such as *Wawer*, *Białołęka*, and *Ursus*, which are characterized by lower density, greater distance from the city center, and more suburban development patterns. Overall, the spatial distribution reflects a **core–periphery structure** with important local deviations, underscoring the role of both location and neighborhood-specific attributes in shaping residential property prices in Warsaw.
 
-Distribution of prices per sqm by district
 ```{r distribution_by_district, include = FALSE}
 price_map_district <- final_data %>%
   group_by(dzielnica) %>%
@@ -411,24 +457,24 @@ price_map_district <- final_data %>%
     .groups = "drop")
 ```
 
-Visualization of distribution of prices per sqm by district
 ```{r map_poland, include = FALSE}
+# visualization of median price per sqm by district in Warsaw
 # Load shapefile for Warsaw districts
 warsaw_shp <- st_read("data/shapefiles/warszawa-dzielnice.geojson",
                       quiet = TRUE)
 ```
 
-```{r plot_price_map, echo = FALSE, warning = FALSE, message = FALSE}
+```{r plot_price_map, echo = FALSE, warning = FALSE, message = FALSE,fig.align="center", out.width="70%"}
 # Merge price data with shapefile
 price_map_data <- warsaw_shp %>%
-    left_join(price_map_district, by = c("name" = "dzielnica"))
+  left_join(price_map_district, by = c("name" = "dzielnica"))
 
 # Create label points for districts
 label_points <- price_map_data %>%
   # Additional functions added to ensure points are within polygons
   sf::st_transform(2180) %>%  # Appropriate CRS for Poland
-    sf::st_point_on_surface() %>%
-    sf::st_transform(sf::st_crs(price_map_data)) %>%  # Back to original CRS
+  sf::st_point_on_surface() %>%
+  sf::st_transform(sf::st_crs(price_map_data)) %>%  # Back to original CRS
   dplyr::mutate(label = name) %>%
   dplyr::filter(label != "Warszawa") # Remove name of the city from labels
 
@@ -457,7 +503,7 @@ label_final <- label_xy %>%
 
 # Plot map of median price per sqm by district
 ggplot(price_map_data) +
-    geom_sf(aes(fill = median_price_sqm), color = "white", linewidth = 0.3) +
+  geom_sf(aes(fill = median_price_sqm), color = "white", linewidth = 0.3) +
   geom_text( # Add labels to districts
     data = label_final,
     aes(label = label, x = X, y = Y),
@@ -469,25 +515,81 @@ ggplot(price_map_data) +
     na.value = "grey90",
     name = "Price (PLN/m²)") +
   theme_minimal() +
-    labs(title = "Median Price per sqm by District in Warsaw",
-        subtitle = "Warsaw, 2025",
-        fill = "Price (PLN/m²)") +
-    theme(
-        axis.title = element_blank(),
-        axis.text = element_blank(),
-        panel.grid = element_blank())
+  labs(title = "Median Price per sqm by District in Warsaw",
+       subtitle = "Warsaw, 2025",
+       fill = "Price (PLN/m²)") +
+  theme(
+    axis.title = element_blank(),
+    axis.text = element_blank(),
+    panel.grid = element_blank())
 ```
+
+#### *4.1.2 Income and Population Density Data*
+
+***WHAT WE WANT TO HAVE HERE??***
+
+
 
 
 ### 4.2 Hypotheses
 
 #### *4.2.1 Hypothesis 1*
 
-Neighborhoods with higher density show lower prices per sqm than neighborhoods with lower density
+Population density is often discussed as an important factor shaping housing affordability. From a theoretical perspective, higher density may be associated with more intensive land use and a larger housing supply, which could exert downward pressure on prices per square meter. At the same time, dense areas are frequently located in central or well-connected parts of the city, where demand is strong and prices tend to be higher. Based on this ambiguity, the following hypothesis is tested:
 
-1. Simple linear regression: log_price_sqm ~ log_density
-2. Map ??
+##### *H1: Neighborhoods with higher population density exhibit lower residential prices per square meter than neighborhoods with lower density.*
 
+The corresponding null hypothesis states that population density does not lead to lower prices:
+
+##### *H0: Neighborhoods with higher population density **do not** exhibit lower residential prices per square meter than neighborhoods with lower density.*
+
+To evaluate this relationship, a log–log linear regression is estimated using district-level averages.
+
+```{r h1_regression, echo=FALSE}
+# Linear regression of price per sqm on population density
+h1_data <- final_data %>%
+  group_by(dzielnica) %>%
+  summarise(
+    avg_price_sqm = mean(cena_wartosc_1m2, na.rm = TRUE),
+    density = first(readr::parse_number(as.character(population_per_1_km2))),
+    .groups = "drop") %>%
+  mutate(
+    log_avg_price_sqm = log(avg_price_sqm),
+    log_density = log(density))
+```
+
+```{r h1_plot, echo=FALSE, fig.align="center", out.width="70%", message=FALSE}
+ggplot(h1_data, aes(x = log_density, y = log_avg_price_sqm)) +
+  geom_point(
+    color = "#7c9ecb",
+    size = 3,
+    alpha = 0.85) +
+  geom_smooth(
+    method = "lm",
+    se = FALSE,
+    color = "#fc8d59",
+    linewidth = 1.2) +
+  labs(
+    title = "Relationship Between Population Density and Housing Prices",
+    subtitle = "Log–log scale, district-level averages",
+    x = "Population Density (pp/km²; log)",
+    y = "Average Price (PLN/km²; log)") +
+  theme_minimal()
+```
+The model relates the logarithm of average residential prices per square meter to the logarithm of population density at the district level. Following formula is estimated:
+$$
+\log(\text{Price}_{i}) = \alpha + \beta \log(\text{Density}_{i}) + \varepsilon_{i}
+$$
+
+The scatter plot and the fitted regression line indicate a positive relationship between population density and average residential prices per square meter at the district level. Districts with higher population density tend to exhibit higher, rather than lower, housing prices. This pattern suggests that in Warsaw, dense neighborhoods are often located in areas with strong demand, good accessibility, and a high concentration of urban amenities, which outweigh potential price-reducing effects of higher housing supply. As a result, the empirical evidence from the log–log regression **does not support Hypothesis H1**. Instead, the observed relationship is more consistent with the null hypothesis, indicating that higher population density is not associated with lower residential prices per square meter. At the same time, the dispersion of points around the regression line highlights substantial heterogeneity across districts, implying that population density alone cannot fully explain price differences and that other location-specific factors play an important role.
+
+
+### **INTERACTIVE MAP PART**
+veyr complex but nice to have if we have time
+
+
+
+RITA'S PART
 <br>
 
 #### *4.2.2 Hypothesis 2:*
@@ -542,7 +644,7 @@ clean_prices_h2 <- clean_prices_h2 %>%
 <details>
 <summary><b>Affordability calculation – R code</b></summary>
 
-```r
+``` r
 Definition of left and right bank districts and construction of the affordability measure
 
 left_bank <- c(
@@ -826,3 +928,4 @@ The figure shows mean log-affordability and 95% confidence intervals by building
 
 
 ## **6. Conclusion**
+
