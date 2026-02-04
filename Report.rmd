@@ -288,7 +288,7 @@ left_join(clean_density, by = c("dzielnica" = "name")) %>%
 left_join(wage_quarterly, by = c("quarter_only" = "quarter"))
 ```
 
-``` {r data_final_check, include = FALSE}`
+``` {r data_final_check, include = FALSE}
 # Check final data for type of variables and transform where needed
 str(final_data)
 final_data <- final_data %>%
@@ -774,12 +774,15 @@ t.test(
 ##### *Boxplot of affordability by bank*
 
 To visually assess differences in residential affordability between the two river banks, a boxplot of log-affordability by river bank is presented below.
-<br>
-<br>
-![Housing affordability by Vistula River bank](Rplot_Affordability_H2.png){width=90%}
+
+
+MISSING BOXPLOT IMAGE
+
+
 <br>
 <br>
 The boxplot indicates that the distribution of log-affordability is shifted upwards for the left bank relative to the right bank. The median affordability is higher on the left bank, and the interquartile range is also slightly wider, suggesting greater dispersion in affordability outcomes. These visual differences are consistent with the results of the one-sided t-test, which found a statistically significant difference in mean affordability between the two river banks.
+
 <br>
 <br>
 
@@ -886,26 +889,25 @@ cat(
 
 The ANOVA results indicate a statistically significant difference in mean log-affordability across the groups (p < 0.001). Post-hoc Tukey HSD comparisons show that newer buildings exhibit significantly higher log-affordability than older buildings, indicating lower affordability for newer housing stock. However, the difference in mean log-affordability between newer and very old buildings is not statistically significant. In addition, very old buildings display significantly higher log-affordability compared to old buildings. Overall, these results suggest that affordability varies non-monotonically across groups, with newer and very old buildings being less affordable relative to older housing stock.
 <br>
-
+<br>
 <details>
 <summary><b>Affordability by building age ANOVA & Tukey Test – R code</b></summary>
+
 <br>
 
-```r
-ANOVA test
+```{r, echo=TRUE, eval=FALSE}
 
+# ANOVA test
 anova_h3 <- aov(log_affordability ~ building_age_group, data = clean_prices_h2)
-summary(anova_h3)
 
-
-Tukey HSD post-hoc test
-
+# Tukey HSD post-hoc test
 tukey_h3 <- TukeyHSD(anova_h3)
-print(tukey_h3)
-```
-</details>
-<br>
 
+```
+
+</details>
+
+<br>
 
 #### *2. Boxplot of affordability by building age group*
 
@@ -928,4 +930,3 @@ The figure shows mean log-affordability and 95% confidence intervals by building
 
 
 ## **6. Conclusion**
-
