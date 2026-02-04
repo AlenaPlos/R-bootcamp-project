@@ -74,11 +74,13 @@ library(rmarkdown)
 library(RColorBrewer)
 library(scales)
 library(ggridges)
+library(viridis)
 
 # Libraries for maps
 library(ggmap)
 library(sf)
 library(rlang)
+library(leaflet)
 
 # Libraries for statistical analysis
 library(broom)
@@ -623,9 +625,121 @@ $$
 
 The scatter plot and the fitted regression line indicate a positive relationship between population density and average residential prices per square meter at the district level. Districts with higher population density tend to exhibit higher, rather than lower, housing prices. This pattern suggests that in Warsaw, dense neighborhoods are often located in areas with strong demand, good accessibility, and a high concentration of urban amenities, which outweigh potential price-reducing effects of higher housing supply. As a result, the empirical evidence from the log–log regression **does not support Hypothesis H1**. Instead, the observed relationship is more consistent with the null hypothesis, indicating that higher population density is not associated with lower residential prices per square meter. At the same time, the dispersion of points around the regression line highlights substantial heterogeneity across districts, implying that population density alone cannot fully explain price differences and that other location-specific factors play an important role.
 
+---
 
-### **INTERACTIVE MAP PART**
-veyr complex but nice to have if we have time
+##### **Interactive Map: Density–Price Patterns by District**
+
+The map presents residential districts of Warsaw classified according to the relationship between population density and average transaction prices. Districts are color-coded based on whether their density–price combination **supports** or **contradicts Hypothesis 1**.
+
+>By clicking on a district, additional information is displayed, including average price per square meter, population density, the assigned density–price pattern,  and examples of the most and least expensive transactions. Individual apartment transactions are shown as point markers and can be toggled on or off using the layer control. The map can be zoomed and panned to explore spatial patterns at different scales.
+
+```{r h1_map, echo=FALSE, warning = FALSE, message = FALSE, fig.width=10, fig.height=7}
+# District polygons setup
+districts_sf <- st_read("data/shapefiles/warszawa-dzielnice.geojson", quiet = TRUE) %>%
+  st_transform(4326) %>%
+  rename(dzielnica = name) %>%
+  mutate(dzielnica = as.character(dzielnica))
+
+# Setting up disctrict statistics for the map including avg price and density
+district_stats <- final_data %>%
+  group_by(dzielnica) %>%
+  summarise(
+    avg_price_sqm = mean(cena_wartosc_1m2, na.rm = TRUE),
+    density = first(population_per_1_km2),
+    .groups = "drop") %>%
+  mutate(
+    avg_price_sqm = as.numeric(avg_price_sqm),
+    density = as.numeric(density))
+
+# Categories for the map
+# Here we create z-scores for price and density to classify districts
+district_stats <- district_stats %>%
+  mutate(
+    z_price   = as.numeric(scale(avg_price_sqm)),
+    z_density = as.numeric(scale(density)),
+    h1_pattern = case_when(
+      z_density > 0 & z_price < 0 ~ "Supports H1: High density / Low price",
+      z_density < 0 & z_price > 0 ~ "Supports H1: Low density / High price",
+      z_density > 0 & z_price > 0 ~ "Contradicts H1: High density / High price",
+      z_density < 0 & z_price < 0 ~ "Contradicts H1: Low density / Low price",
+      TRUE ~ "n/a"))
+
+# Merging district polygons with statistics
+fmt_pln <- function(x) format(round(x), big.mark = " ", decimal.mark = ",")
+
+# Create popup labels for the map
+districts_map <- districts_sf %>%
+  left_join(district_stats, by = "dzielnica") %>%
+  mutate(
+    popup = paste0(
+      "<b>",
+      ifelse(is.na(dzielnica), "Unknown district", dzielnica),
+      "</b><br/>",
+      "Avg price: ", fmt_pln(avg_price_sqm), " PLN/m²<br/>",
+      "Density: ", fmt_pln(density), " ppl/km²<br/>",
+      "<b>", h1_pattern, "</b>"))
+
+# Add transaction points to the map
+apartments_sf <- final_data %>%
+  filter(!is.na(longitude), !is.na(latitude)) %>%
+  st_as_sf(coords = c("longitude", "latitude"), crs = 4326, remove = FALSE) %>%
+  select(-any_of("dzielnica"))
+
+apartments_sf <- st_join(
+  apartments_sf,
+  districts_sf %>% select(dzielnica),
+  join = st_within,
+  left = TRUE)
+
+
+# Create the interactive map using leaflet
+pal_cat <- leaflet::colorFactor(
+  palette = c(
+    "Supports H1: High density / Low price"     = "#4575B4",
+    "Supports H1: Low density / High price"    = "#91BFDB",
+    "Contradicts H1: Low density / Low price"  = "#FEE090",
+    "Contradicts H1: High density / High price" = "#D73027" ),
+  domain = districts_map$h1_pattern,
+  na.color = "#cccccc")
+
+leaflet() %>%
+  addProviderTiles("CartoDB.Voyager") %>%
+  addPolygons(
+    data = districts_map,
+    fillColor = ~pal_cat(h1_pattern),
+    fillOpacity = 0.6,
+    color = "white",
+    weight = 1,
+    popup = ~popup,
+    group = "H1 pattern") %>%
+  addCircleMarkers(
+    data = apartments_sf,
+    lng = ~longitude, lat = ~latitude,
+    radius = 3,
+    stroke = FALSE,
+    fillOpacity = 0.30,
+    popup = ~paste0(
+      "<b>", ifelse(is.na(dzielnica), "Unknown district", dzielnica), "</b><br/>",
+      "Price: ", fmt_pln(cena_wartosc_1m2), " PLN/m²"),
+    group = "Transactions") %>%
+  addLegend(
+    position = "bottomright",
+    pal = pal_cat,
+    values = districts_map$h1_pattern,
+    title = "Density–price pattern (H1)",
+    opacity = 1) %>%
+  addLayersControl(
+    overlayGroups = c("H1 pattern", "Transactions"),
+    options = layersControlOptions(collapsed = FALSE))
+```
+
+The interactive choropleth map provides a spatial perspective on the relationship between population density and housing prices in Warsaw, complementing the regression-based analysis presented earlier. By jointly visualizing district-level density–price patterns and individual transaction locations, the map highlights areas where empirical outcomes align with or contradict the theoretical expectation that higher density is associated with lower prices.
+
+Districts classified as **supporting Hypothesis 1** exhibit either high density with relatively lower prices or low density with higher prices, consistent with affordability effects predicted by urban economic theory. In contrast, districts marked as **contradicting Hypothesis 1** reveal cases where high density coincides with high prices or low density with low prices, suggesting the presence of additional structural factors such as location attractiveness, infrastructure quality, or neighborhood reputation. Overall, the map illustrates that the density–price relationship is spatially heterogeneous, reinforcing the need to interpret aggregate statistical results in a geographic context.
+
+
+
+
 
 
 
@@ -684,7 +798,7 @@ clean_prices_h2 <- clean_prices_h2 %>%
 <details>
 <summary><b>Affordability calculation – R code</b></summary>
 
-``` r
+```r
 Definition of left and right bank districts and construction of the affordability measure
 
 left_bank <- c(
@@ -892,12 +1006,12 @@ At least one building age group exhibits a different mean log-affordability.
 <br>
 <br>
 
-``` {r h3_data_prep, include = FALSE}
+```{r h3_data_prep, include = FALSE}
 # Data preparation for ANOVA and Tukey tests
 # Exclude missing building age
 clean_prices_h3 <- clean_prices_h2 %>%
   dplyr::filter(!is.na(building_age_group), !is.na(log_affordability))
-
+```
 
 ```{r h3_anova_tukey_tables, echo=FALSE, results='asis', message=FALSE, warning=FALSE}
 
@@ -1050,23 +1164,24 @@ p_h3_box_jitter
 ``` {r h3_ridgeline, echo=FALSE, fig.align="center", out.width="70%", message=FALSE, warning=FALSE}
 ggplot(clean_prices_h3, aes(x = log_affordability,
                             y = building_age_group,
-                            fill = building_age_group)) +
-  geom_density_ridges(
-    alpha = 0.70,
-    scale = 1.15,
+                            fill = after_stat(x))) +
+  geom_density_ridges_gradient(
+    alpha = 0.95,
+    scale = 1.2,
     rel_min_height = 0.01,
-    color = "white",
+    color = "#91bfdb",
     linewidth = 0.3) +
-  scale_fill_manual(values = h3_cols) +
+scale_fill_gradientn(
+  colours = c("#4575B4", "#FFFFBF", "#D73027"),
+    values  = c(0, 0.5, 1),
+    name = "Log affordability") +
   labs(
     title = "Distribution of log-affordability by building age group",
-    subtitle = "Ridgeline densities highlight shifts and differences in distribution shape",
     x = "Log affordability (PLN/m² / income)",
     y = NULL) +
   theme_minimal() +
   theme(
-    legend.position = "none",
-    plot.title = element_text(face = "bold"),
+    legend.position = "right",
     panel.grid.minor = element_blank())
 ```
 
