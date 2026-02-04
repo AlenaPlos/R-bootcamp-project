@@ -73,12 +73,16 @@ library(rmarkdown)
 # Libraries for visualizations
 library(RColorBrewer)
 library(scales)
+library(ggridges)
 
 # Libraries for maps
 library(ggmap)
 library(sf)
 library(rlang)
 
+# Libraries for statistical analysis
+library(broom)
+library(tibble)
 # To be updated ...
 ```
 
@@ -331,6 +335,51 @@ The descriptive analysis presents the main characteristics of the data using for
 #### *4.1.1 Transaction Price Data*
 Residential prices per square meter represent the **central variable** of interest in the analysis and therefore receive a more detailed descriptive treatment. Summary statistics are used to illustrate typical price levels, variability, and the presence of extreme values, while graphical representations highlight the overall shape of the price distribution. This allows for an initial assessment of market heterogeneity and provides context for the district-level comparisons presented later in the analysis.
 
+``` {r table_setup, include=FALSE}
+# Setup for tables so later on in report only need to call kable function
+style_kable <- function(
+  tbl,
+  caption,
+  align = NULL,
+  header_bg = "#f2f2f2",
+  bootstrap = c("striped", "condensed", "bordered"),
+  col_widths = NULL,
+  bold_first_col = TRUE) {
+  n_cols <- ncol(tbl)
+
+  # Default alignment: left for first col, right for others
+  if (is.null(align)) {
+    align <- c("l", rep("r", n_cols - 1))}
+
+# Make table look nice
+  out <- tbl %>%
+    kable(
+      format = "html",
+      caption = caption,
+      align = align,
+      escape = FALSE) %>%
+    kable_styling(
+      full_width = FALSE,
+      position = "center",
+      bootstrap_options = bootstrap) %>%
+    row_spec(0, bold = TRUE, background = header_bg, align = "c")
+
+# Default widths for 2-column tables
+if (is.null(col_widths) && n_cols == 2) {
+  col_widths <- c("220px", "140px")}
+
+# Apply widths to as many columns as provided in col_widths
+  if (!is.null(col_widths)) {
+    for (i in seq_len(min(length(col_widths), n_cols))) {
+      out <- out %>% column_spec(i, width = col_widths[i])}}
+
+# Make bold first column
+  if (bold_first_col) {
+    out <- out %>% column_spec(1, bold = TRUE)}
+  out}
+```
+
+
 ```{r summary_stats_prices, include = FALSE}
 # First we calculate summary statistics for price per square meter
 summary_stats <- final_data %>%
@@ -381,19 +430,10 @@ stats_prices_table <- stats_prices_table %>%
       decimal.mark = ","))
 
 # Display the table using kable function
-stats_prices_table %>%
-  kable(
-    format = "html",
-    caption = "Summary Statistics for Price/m²",
-    align = c("l", "l")) %>% # Alighn columns to left
-  kable_styling(
-    full_width = FALSE,
-    position = "center",
-    bootstrap_options = c("striped", "condensed", "bordered")) %>%
-  # Add styling to header row (centered) and columns
-  row_spec(0, bold = TRUE, background = "#f2f2f2", align ="c") %>%
-  column_spec(1, width = "220px") %>%
-  column_spec(2, width = "140px")
+style_kable(
+  stats_prices_table,
+  caption = "Summary Statistics for Price/m²")
+
 ```
 ##### **Distribution of Prices per Square Meter**
 
@@ -713,9 +753,6 @@ t.test(
 ```
 
 ```{r ttest_table, echo=FALSE}
-library(dplyr)
-library(knitr)
-library(kableExtra)
 
 tt <- t.test(log_affordability ~ river_bank,
              data = clean_prices_h2,
@@ -740,17 +777,12 @@ tt_tbl <- tibble::tibble(
       format(Value, scientific = TRUE, digits = 3),
       format(round(as.numeric(Value), 4), nsmall = 4)
     )
-  )
-
-tt_tbl %>%
-  kable(
-    caption = "T-test results: log-affordability by river bank",
-    col.names = c("Statistics", "Value"),
-    align = c("l", "r")
   ) %>%
-  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover")) %>%
-  column_spec(1, bold = TRUE) %>%
-  row_spec(0, bold = TRUE)
+rename(Statistics = Metric)
+style_kable(
+  tt_tbl,
+  caption = "One-sided t-test results: log-affordability by Vistula River bank",
+  align = c("l", "r"))
 ```
 
 The results of the one-sided t-test indicate a statistically significant difference in residential affordability between the two river banks. The mean log-affordability on the left bank is higher than on the right bank (0.507 vs. 0.387), indicating lower affordability on the left bank. The null hypothesis of equal mean affordability is rejected at conventional significance levels (p < 0.001). These findings support Hypothesis 2, suggesting that residential real estate on the left bank of the Vistula River is less affordable relative to income than on the right bank.
@@ -794,10 +826,56 @@ Figure below presents the mean log-affordability by river bank together with 95%
 ![Mean housing affordability by Vistula River bank](data/shapefiles/Rplot_Mean_CI.png){width=90%}
 <br>
 
+OTHER VERSION OF BOXPLOT + MEAN CI PLOT COMBINED??
+
+```{r h2_boxplot, echo=FALSE, fig.align="center", out.width="70%", message=FALSE, warning=FALSE}
+
+# Data preparation for boxplot
+plot_data <- clean_prices_h2 %>%
+  filter(!is.na(river_bank), !is.na(log_affordability)) %>%
+  mutate(
+    river_bank = factor(
+      river_bank,
+      levels = c("Left bank", "Right bank")))
+
+# Summary statistics for mean and 95% CI
+ggplot(plot_data, aes(x = river_bank, y = log_affordability, fill = river_bank)) +
+  geom_boxplot(
+    width = 0.40,
+    alpha = 0.65,
+    outlier.shape = NA) +
+  geom_jitter(
+    aes(color = river_bank),
+    width = 0.15,
+    alpha = 0.25,
+    size = 0.8) +
+  stat_summary(
+    fun = mean,
+    geom = "point",
+    size = 2.8,
+    color = "black") +
+  scale_fill_manual(
+    values = c("Left bank" = "#7c9ecb", "Right bank" = "#fc8d59")) +
+  scale_color_manual(
+    values = c("Left bank" = "#7c9ecb", "Right bank" = "#fc8d59")) +
+  labs(
+    title = "Log-affordability by Vistula River bank",
+    x = NULL,
+    y = "Log affordability (PLN/m² / income)") +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(),
+    panel.grid.minor = element_blank())
+```
+
+
+
+
 #### *4.2.3 Hypothesis 3*
 #### *Affordability of residential real estate differs systematically across building age groups in Warsaw*
 
-Newer residential buildings are typically associated with higher construction standards, modern amenities, and stronger market demand, potentially leading to higher prices relative to income. For this analysis, buildings are grouped by construction period into very old (pre-1960), old (1960–2010), and new (2010–2025) categories. The hypothesis examines whether residential affordability differs systematically across these building age groups.
+Newer residential buildings are typically associated with higher construction standards, modern amenities, and stronger market demand, potentially leading to higher prices relative to income. For this analysis, buildings are grouped by construction period into **very old (pre-1960)**, **old (1960–2010)**, and **new (2010–2025)** categories. The hypothesis examines whether residential affordability differs systematically across these building age groups.
 <br>
 <br>
 
@@ -814,14 +892,17 @@ At least one building age group exhibits a different mean log-affordability.
 <br>
 <br>
 
-```{r h3_anova_tukey_tables, echo=FALSE, results='asis', message=FALSE, warning=FALSE}
-library(dplyr)
-library(broom)
-library(kableExtra)
-library(tibble)
+``` {r h3_data_prep, include = FALSE}
+# Data preparation for ANOVA and Tukey tests
+# Exclude missing building age
+clean_prices_h3 <- clean_prices_h2 %>%
+  dplyr::filter(!is.na(building_age_group), !is.na(log_affordability))
 
-# --- ANOVA (H3) ---
-anova_h3 <- aov(log_affordability ~ building_age_group, data = clean_prices_h2)
+
+```{r h3_anova_tukey_tables, echo=FALSE, results='asis', message=FALSE, warning=FALSE}
+
+# ANOVA test for H3
+anova_h3 <- aov(log_affordability ~ building_age_group, data = clean_prices_h3)
 
 # Extract only the row for the factor (not residuals)
 anova_row <- broom::tidy(anova_h3) %>%
@@ -845,15 +926,12 @@ anova_tbl_df <- tibble(
     )
   )
 
-anova_table <- anova_tbl_df %>%
-  kable(
-    caption = "ANOVA results: log-affordability by building age group",
-    col.names = c("Statistics", "Value"),
-    align = c("l", "r"),
-    escape = FALSE
-  ) %>%
-  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover")) %>%
-  column_spec(1, bold = TRUE)
+# Visual setup for ANOVA table
+anova_table <- style_kable(
+  anova_tbl_df,
+  caption = "ANOVA results: log-affordability by building age group",
+  align = c("l", "r"),
+  bootstrap = c("striped", "condensed", "bordered"))
 
 # --- Tukey (H3) ---
 tukey_h3 <- TukeyHSD(anova_h3)
@@ -868,16 +946,16 @@ tukey_df <- broom::tidy(tukey_h3) %>%
     `p adj`     = format(adj.p.value, scientific = TRUE, digits = 3)
   )
 
-tukey_table <- tukey_df %>%
-  kable(
-    caption = "Tukey HSD pairwise comparisons",
-    align = "lrrrr",
-    escape = FALSE
-  ) %>%
-  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover")) %>%
-  column_spec(1, bold = TRUE)
+# Change names of classifications
+# Visual setup for Tukey table
+tukey_table <- style_kable(
+  tukey_df,
+  caption = "Tukey HSD pairwise comparisons",
+  align = c("l", "r", "r", "r", "r"),
+  col_widths = c("130px", "100px", "100px", "100px", "100px"))
 
-# --- Side-by-side layout ---
+
+# Side-by-side layout for tables
 cat(
   '<div style="display:flex; gap:40px; align-items:flex-start;">',
   '<div style="flex:1;">', as.character(anova_table), '</div>',
@@ -898,7 +976,7 @@ The ANOVA results indicate a statistically significant difference in mean log-af
 ```{r, echo=TRUE, eval=FALSE}
 
 # ANOVA test
-anova_h3 <- aov(log_affordability ~ building_age_group, data = clean_prices_h2)
+anova_h3 <- aov(log_affordability ~ building_age_group, data = clean_prices_h3)
 
 # Tukey HSD post-hoc test
 tukey_h3 <- TukeyHSD(anova_h3)
@@ -920,6 +998,79 @@ To visually assess differences in residential affordability across building age 
 <br>
 The figure shows mean log-affordability and 95% confidence intervals by building age group. Newer buildings display the highest average log-affordability, indicating lower affordability relative to income, while older buildings are the most affordable. The confidence intervals support the statistically significant differences identified by the ANOVA and Tukey post-hoc tests.
 <br>
+
+
+ALTERNATIVE PLOTS
+
+```{r h3_boxplot, echo=FALSE, fig.align="center", out.width="70%", message=FALSE, warning=FALSE}
+
+# Data preparation for boxplot
+clean_prices_h3 <- clean_prices_h3 %>%
+  mutate(
+    building_age_group = factor(
+      building_age_group,
+      levels = c("very_old", "old", "new"),
+      labels = c("Very old (pre-1960)", "Old (1960–2010)", "New (2010–2025)")))
+
+# Define colors for building age groups
+h3_cols <- c(
+  "Very old (pre-1960)" = "#4575b4",
+  "Old (1960–2010)"     = "#ffffbf",
+  "New (2010–2025)"     = "#fc8d59")
+
+# Boxplot with jittered points
+p_h3_box_jitter <- ggplot(
+  clean_prices_h3,
+  aes(x = building_age_group, y = log_affordability, fill = building_age_group)) +
+  geom_boxplot(width = 0.40, alpha = 0.65, outlier.shape = NA) +
+  geom_jitter(
+    aes(color = building_age_group),
+    width = 0.15,
+    alpha = 0.20,
+    size = 0.8
+  ) +
+  stat_summary(fun = mean, geom = "point", size = 2.6, color = "black") +
+  scale_fill_manual(values = h3_cols) +
+  scale_color_manual(values = h3_cols) +
+  labs(
+    title = "Log-affordability by building age group",
+    x = NULL,
+    y = "Log affordability (PLN/m² / income)") +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(),
+    panel.grid.minor = element_blank())
+
+p_h3_box_jitter
+```
+
+**Ridgeline plot**
+
+``` {r h3_ridgeline, echo=FALSE, fig.align="center", out.width="70%", message=FALSE, warning=FALSE}
+ggplot(clean_prices_h3, aes(x = log_affordability,
+                            y = building_age_group,
+                            fill = building_age_group)) +
+  geom_density_ridges(
+    alpha = 0.70,
+    scale = 1.15,
+    rel_min_height = 0.01,
+    color = "white",
+    linewidth = 0.3) +
+  scale_fill_manual(values = h3_cols) +
+  labs(
+    title = "Distribution of log-affordability by building age group",
+    subtitle = "Ridgeline densities highlight shifts and differences in distribution shape",
+    x = "Log affordability (PLN/m² / income)",
+    y = NULL) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(face = "bold"),
+    panel.grid.minor = element_blank())
+```
+
+
 
 
 
