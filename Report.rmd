@@ -1,3 +1,27 @@
+---
+output:
+    html_document:
+    code_folding: show
+---
+
+```{css, echo=FALSE}
+details.codebox {
+  margin: 8px 0 14px 0;
+  padding: 6px 10px;
+  border: 1px solid #e5e5e5;
+  border-radius: 6px;
+  background: #fafafa;
+}
+details.codebox > summary {
+  cursor: pointer;
+  font-size: 0.95em;
+}
+details.codebox pre {
+  margin-top: 10px;
+  overflow-x: auto;
+}
+```
+
 <center>
 
 # Affordability of Residential Real Estate in Warsaw
@@ -39,17 +63,14 @@ center p {
 knitr::opts_knit$set(root.dir = ".")
 ```
 
-## **1. Introduction and Hypothesis**
 
+Table of contents (clickable)
 
-### 1.1 Background and purpose of the project
+```{r t_o_c, echo=FALSE}
+# Table of contents
 
+```
 
----
-
-
-## **2. Data Description**
-Sources and types of data will be explained here. how many columns/rows, what kind of variables, etc.
 
 ```{r libraries, include = FALSE}
 # Load required libraries
@@ -81,6 +102,7 @@ library(ggmap)
 library(sf)
 library(rlang)
 library(leaflet)
+library(osmdata)
 
 # Libraries for statistical analysis
 library(broom)
@@ -88,73 +110,36 @@ library(tibble)
 # To be updated ...
 ```
 
-
 ```{r data, include = FALSE}
-#### Data set ####
-## load data and inspection
-
-## Prices data set
+# Loading the datasets
+# Prices data set
 prices <- read_excel("Prices.xlsx")
-head(prices)
-dim(prices)
 
-## Density data set
+# Density data set
 density <- read_excel("Density.xlsx", sheet="TABLE")
-head(density)
-dim(density)
 
-## Median wage data set
+# Median wage data set
 median_wage <- read_excel("MedianWage.xlsx", sheet="TABLE")
-head(median_wage)
-dim(median_wage)
-
-## Data check
-glimpse(prices)
-glimpse(density)
-glimpse(median_wage)
-
 ```
 
----
-
-
-## **3. Data Preparation**
-In this chapter we describe the datasets we have as well as prepare it for further
-analysis. We clean it, transform it and merge it into one final dataset.
-
-
-
-
-### 3.1 Data Cleaning and transformation
-This chapter is dedicated to cleaning and transforming each dataset separately.
-After all the manipulations we will have three clean datasets ready for merging.
-We will merge them in this chapter as well.
-We have 3 datasets: prices, density, median_wage.
-
-#### *3.1.1 Price Data*
-Here we check for missing values and clean the data. We remove columns that are not needed.
-
 ```{r prices_values, include = FALSE}
-## Check for missing values
+# Check for missing values
 sum(is.na(prices))
-## Remove and change polish letters, convert to lower case
+
+# Remove and change polish letters, convert to lower case
 clean_prices <- prices %>%
   clean_names() %>%
   mutate(across(where(is.character),
-            ~ tolower(stri_trans_general(., "Latin-ASCII"))))
+                ~ tolower(stri_trans_general(., "Latin-ASCII"))))
 
-## Check cleaned data
-glimpse(clean_prices)
-
-## Remove unnecessary columns
+# Remove unnecessary columns
 clean_prices <- clean_prices %>%
   select(-c("zrodlo_informacji", "cena_wartosc", "waluta", "numer_budynku"))
-
 ```
-Here we create new variables: price per sqm, log price per sqm, etc.
-First is geo data
+
 ```{r prices_geo, include = FALSE}
-## Coordinates data type conversion and save
+# Here we create new variables: price per sqm, log price per sqm, etc.
+# Coordinates data type conversion and save
 if (!file.exists("streets_geo.rds")) {
 
   streets_geo <- clean_prices %>%
@@ -164,11 +149,9 @@ if (!file.exists("streets_geo.rds")) {
       address = address,
       method = "osm",
       lat = latitude,
-      long = longitude
-    )
+      long = longitude)
 
-  saveRDS(streets_geo, "streets_geo.rds")
-}
+  saveRDS(streets_geo, "streets_geo.rds")}
 
 # Load saved geo data
 streets_geo <- readRDS("streets_geo.rds")
@@ -177,167 +160,196 @@ clean_prices <- clean_prices %>%
   left_join(streets_geo, by = "ulica")
 ```
 
-
 ```{r prices_cleaning, include = FALSE}
-
-## Remove unnecessary columns
+# Remove unnecessary columns
 clean_prices <- clean_prices %>%
-select(-address)
+  select(-address)
 
-## Check final price data for missing values
-sum(is.na(clean_prices))
-glimpse(clean_prices)
-
-## Delete rows with missing coordinates
+# Delete rows with missing coordinates
 clean_prices <- clean_prices %>%
-filter(!is.na(latitude) & !is.na(longitude))
+  filter(!is.na(latitude) & !is.na(longitude))
 ```
 
 ```{r prices_age, include = FALSE}
-## Create building age groups
+# Create building age groups
 clean_prices <- clean_prices %>%
-mutate(
-building_age_group = case_when(
-rok_budowy < 1960 ~ "very_old",
-rok_budowy >= 1960 & rok_budowy < 2010 ~ "old",
-rok_budowy >= 2010 & rok_budowy <= 2025 ~ "new",
-TRUE ~ NA_character_))
+  mutate(
+    building_age_group = case_when(
+      rok_budowy < 1960 ~ "very_old",
+      rok_budowy >= 1960 & rok_budowy < 2010 ~ "old",
+      rok_budowy >= 2010 & rok_budowy <= 2025 ~ "new",
+      TRUE ~ NA_character_))
 ```
 
 ```{r prices_date, include = FALSE}
-## Date conversion
+# Date conversion
 clean_prices <- clean_prices %>%
-mutate(quarter_only = str_extract(data_transakcji_wyceny, "q[1-4]")) %>% # we left quarter only as all the data is from 2025
-select(-data_transakcji_wyceny)
+  mutate(quarter_only = str_extract(data_transakcji_wyceny, "q[1-4]")) %>% # we left quarter only as all the data is from 2025
+  select(-data_transakcji_wyceny)
 ```
 
-```{r prices_price_sqm, include = FALSE}
+```{r prices_log_sqm, include = FALSE}
+# Add log price per sqm
 clean_prices <- clean_prices %>%
-relocate(quarter_only, .before = cena_wartosc_1m2) %>%
-mutate(log_price_sqm = log(cena_wartosc_1m2)) %>%
-relocate(log_price_sqm, .after = cena_wartosc_1m2)
+  relocate(quarter_only, .before = cena_wartosc_1m2) %>%
+  mutate(log_price_sqm = log(cena_wartosc_1m2)) %>%
+  relocate(log_price_sqm, .after = cena_wartosc_1m2)
 ```
 
-#### *3.1.2 Wage Data*
-Here we clean the wage data set and convert it to quarterly median wage.
-
-``` {r wage_cleaning, include = FALSE}
+```{r wage_cleaning, include = FALSE}
 # Removing missing Values and unnecessary columns
-
 clean_wage <- median_wage %>%
-select(-Code, -Name) %>%
-slice(-c(1, 2, 3, 4))
+  select(-Code, -Name) %>%
+  slice(-c(1, 2, 3, 4))
 
-#Wide to Long
+# Wide to Long format
 clean_wage <- clean_wage %>%
-pivot_longer(
-cols = everything(),
-names_to = "month",
-values_to = "median_wage"
-) %>%
-mutate(median_wage = readr::parse_number(median_wage))
+  pivot_longer(
+    cols = everything(),
+    names_to = "month",
+    values_to = "median_wage") %>%
+  mutate(median_wage = readr::parse_number(median_wage))
 ```
 
-``` {r wage_quarter, include = FALSE}
+```{r wage_quarter, include = FALSE}
 # Convert wage median to quarterly median
 wage_quarterly <- clean_wage %>%
-mutate(
-quarter = case_when(
-month %in% c("January", "February", "March") ~ "q1",
-month %in% c("April", "May", "June")         ~ "q2",
-month %in% c("July", "August", "September")  ~ "q3",))
+  mutate(
+    quarter = case_when(
+      month %in% c("January", "February", "March") ~ "q1",
+      month %in% c("April", "May", "June")         ~ "q2",
+      month %in% c("July", "August", "September")  ~ "q3"))
 wage_quarterly <- wage_quarterly %>%
-group_by(quarter) %>%
-summarise(
-median_wage_q = mean(median_wage, na.rm = TRUE),
-.groups = "drop")
+  group_by(quarter) %>%
+  summarise(
+    median_wage_q = mean(median_wage, na.rm = TRUE),
+    .groups = "drop")
 ```
 
-``` {r wage_log, include = FALSE}
+```{r wage_log, include = FALSE}
 # Add log median wage quarterly
 wage_quarterly <- wage_quarterly %>%
-mutate(log_median_wage_q = log(median_wage_q))
+  mutate(log_median_wage_q = log(median_wage_q))
 ```
 
-#### *3.1.3 Density Data*
-
-Here we will explain cleaning steps for Density data set.
-
-``` {r density_cleaning, include = FALSE}
+```{r density_cleaning, include = FALSE}
 # Clean Density data set
 # Cleaning the Polish letters and NAs from Density data set
-
 clean_density <- density %>%
-clean_names() %>%
-select(-code) %>%
-mutate(across(where(is.character),
-~ tolower(stri_trans_general(., "Latin-ASCII"))))%>%
+  clean_names() %>%
+  select(-code) %>%
+  mutate(across(where(is.character),
+                ~ tolower(stri_trans_general(., "Latin-ASCII"))))%>%
 
-# remove missing values
-na.omit()
+  # remove missing values
+  na.omit()
 
-# Erase first 2 rows and Distric 8 from the name
+# Erase first 2 rows and "Distric 8" from the name
 clean_density <- clean_density %>%
-slice(-c(1, 2)) %>%                                   # remove first 2 rows
-mutate(
-name = str_remove(name, "\\s*-\\s*district\\s*\\(8\\)")
-)
+  slice(-c(1, 2)) %>% # remove first 2 rows
+  mutate(
+    name = str_remove(name, "\\s*-\\s*district\\s*\\(8\\)"))
 ```
 
-### 3.2 Data merging
-Here we merge the three cleaned datasets into one final dataset for analysis.
-
-``` {r data_merge, include = FALSE}
+```{r data_merge, include = FALSE}
 # Merging all datasets into one final dataset for analysis
 final_data <- clean_prices %>%
-left_join(clean_density, by = c("dzielnica" = "name")) %>%
-left_join(wage_quarterly, by = c("quarter_only" = "quarter"))
+  left_join(clean_density, by = c("dzielnica" = "name")) %>%
+  left_join(wage_quarterly, by = c("quarter_only" = "quarter"))
 ```
 
-``` {r data_final_check, include = FALSE}
+```{r data_final_check, include = FALSE}
 # Check final data for type of variables and transform where needed
 str(final_data)
 final_data <- final_data %>%
-mutate(
-population_per_1_km2 = as.numeric(population_per_1_km2))
+  mutate(
+    population_per_1_km2 = as.numeric(population_per_1_km2))
 ```
-``` {r final_data, include = FALSE}
+
+```{r final_data, include = FALSE}
 # Change the names of neighborhoods to original ones with polish letters
 final_data <- final_data %>%
-mutate(
-dzielnica = case_when(
-dzielnica == "bemowo"          ~ "Bemowo",
-dzielnica == "bialoleka"       ~ "Białołęka",
-dzielnica == "bielany"         ~ "Bielany",
-dzielnica == "mokotow"         ~ "Mokotów",
-dzielnica == "ochota"          ~ "Ochota",
-dzielnica == "praga-polnoc"    ~ "Praga Północ",
-dzielnica == "praga-poludnie"  ~ "Praga Południe",
-dzielnica == "srodmiescie"     ~ "Śródmieście",
-dzielnica == "targowek"        ~ "Targówek",
-dzielnica == "ursus"           ~ "Ursus",
-dzielnica == "ursynow"         ~ "Ursynów",
-dzielnica == "wawer"           ~ "Wawer",
-dzielnica == "wesoła"          ~ "Wesoła",
-dzielnica == "wilanow"         ~ "Wilanów",
-dzielnica == "wlochy"          ~ "Włochy",
-dzielnica == "wola"            ~ "Wola",
-dzielnica == "zoliborz"        ~ "Żoliborz",
-TRUE ~ dzielnica))
+  mutate(
+    dzielnica = case_when(
+      dzielnica == "bemowo"          ~ "Bemowo",
+      dzielnica == "bialoleka"       ~ "Białołęka",
+      dzielnica == "bielany"         ~ "Bielany",
+      dzielnica == "mokotow"         ~ "Mokotów",
+      dzielnica == "ochota"          ~ "Ochota",
+      dzielnica == "praga-polnoc"    ~ "Praga Północ",
+      dzielnica == "praga-poludnie"  ~ "Praga Południe",
+      dzielnica == "srodmiescie"     ~ "Śródmieście",
+      dzielnica == "targowek"        ~ "Targówek",
+      dzielnica == "ursus"           ~ "Ursus",
+      dzielnica == "ursynow"         ~ "Ursynów",
+      dzielnica == "wawer"           ~ "Wawer",
+      dzielnica == "wesola"          ~ "Wesoła",
+      dzielnica == "wilanow"         ~ "Wilanów",
+      dzielnica == "wlochy"          ~ "Włochy",
+      dzielnica == "wola"            ~ "Wola",
+      dzielnica == "zoliborz"        ~ "Żoliborz",
+      dzielnica == "rembertow"        ~ "Rembertów",
+      TRUE ~ dzielnica))
 ```
+
+## **1. Introduction and Hypothesis**
+
+### 1.1 Background and purpose of the project
+Housing affordability has become a central issue in urban real estate markets, particularly in large metropolitan areas where population concentration, income disparities, and spatial heterogeneity interact to shape residential outcomes. In such contexts, affordability is not only determined by overall price levels but also by local factors such as neighborhood density, access to employment, urban structure, and characteristics of the housing stock. Understanding how these factors vary within a city is therefore crucial for assessing affordability conditions and identifying spatial patterns that may not be visible at an aggregate level. *Warsaw*, as the capital and largest city of Poland, provides a particularly relevant case for examining these dynamics. The city exhibits substantial variation across districts in terms of population density, housing prices, income levels, and building characteristics. In addition, the Vistula River divides Warsaw into two distinct urban areas with different historical development paths and socio-economic profiles. These features make Warsaw well suited for a neighborhood-level analysis of residential affordability.
+
+The purpose of this project is to analyze the *affordability* of residential real estate in Warsaw using transaction-level price data, population density measures, and income information. Affordability is conceptualized as the relationship between housing prices per square meter and income, allowing for comparisons across neighborhoods and housing segments. By combining descriptive analysis, regression-based methods, and spatial visualization techniques, the project aims to identify systematic patterns in affordability within the city and to assess whether commonly discussed determinants, such as density, location relative to the river, and building age, are empirically supported.
+
+### 1.2 Hypotheses
+
+The main objective of the analysis is to model and compare residential real estate affordability across Warsaw’s neighborhoods using data from recent housing transactions. Based on urban economic theory, the following hypotheses are formulated for testing:
+
+- **Hypothesis 1 (H1):** Neighborhoods with higher population density exhibit lower residential prices per square meter than neighborhoods with lower density.
+- **Hypothesis 2 (H2):** Affordability of residential real estate on the left bank of the Vistula River in Warsaw is lower than in neighborhoods located on the right bank.
+- **Hypothesis 3 (H3):** Affordability of residential real estate differs systematically across building age groups in Warsaw.
+
+All hypotheses will be evaluated using regression analysis and spatial visualization techniques to assess the relationships between housing prices, income levels, population density, river location, and building age at the neighborhood level.
+
 ---
 
+## **2. Data Description**
 
-## **4. Data Analysis**
-The empirical analysis builds on the prepared dataset to explore patterns in residential real estate affordability in Warsaw. The analysis combines numerical summaries and visual representations to examine both the distribution and spatial variation of key variables. These exploratory insights provide context for understanding how prices, income levels, and urban structure differ across the city and how these differences shape affordability outcomes.
+### 2.1 Data Overview
 
-### 4.1 Descriptive Statistics
-The descriptive analysis presents the main characteristics of the data using formats tailored to the nature of each variable. Transaction-level price data allow for a detailed examination of distributional properties, while wage and population density data, observed at aggregated spatial levels, are better described through levels and spatial patterns. Together, these descriptive elements offer an initial empirical overview of affordability-related dynamics within Warsaw.
+The analysis is based on a merged dataset combining transaction-level residential price data with district-level socio-economic indicators. The final dataset contains individual apartment transactions in Warsaw from the first and second quarter of 2025 and includes both numeric and categorical variables describing prices, location, and housing characteristics. In addition, district-level information on population density and quarterly income is linked to each transaction via the district identifier.
 
-#### *4.1.1 Transaction Price Data*
-Residential prices per square meter represent the **central variable** of interest in the analysis and therefore receive a more detailed descriptive treatment. Summary statistics are used to illustrate typical price levels, variability, and the presence of extreme values, while graphical representations highlight the overall shape of the price distribution. This allows for an initial assessment of market heterogeneity and provides context for the district-level comparisons presented later in the analysis.
+*Table 1* summarises key characteristics of the final analytical dataset, including the number of observations, variables, districts, time coverage, and geocoding completeness.
 
-``` {r table_setup, include=FALSE}
+```{r data_overview_facts, include=FALSE}
+# Dataset size
+n_transactions <- nrow(final_data)
+n_variables    <- ncol(final_data)
+n_districts    <- n_distinct(final_data$dzielnica)
+quarters       <- sort(unique(final_data$quarter_only))
+
+# Share of transactions with geo coordinates
+share_geo <- mean(!is.na(final_data$longitude)&!is.na(final_data$latitude))*100
+
+#  Missing key variables
+missing_key <- tibble::tibble(
+  Variable = c("cena_wartosc_1m2", "population_per_1_km2", "median_wage_q", "longitude/latitude"),
+  Missing = c(
+    sum(is.na(final_data$cena_wartosc_1m2)),
+    sum(is.na(final_data$population_per_1_km2)),
+    sum(is.na(final_data$median_wage_q)),
+    sum(is.na(final_data$longitude) | is.na(final_data$latitude))))
+
+# Transactions per district
+district_transaction <- final_data %>%
+  group_by(dzielnica) %>%
+  summarise(
+    n_transactions = n(),
+    median_price_sqm = median(cena_wartosc_1m2, na.rm = TRUE),
+    avg_density = first(population_per_1_km2),
+    .groups = "drop") %>%
+  arrange(desc(n_transactions))
+```
+
+```{r table_setup, include=FALSE}
 # Setup for tables so later on in report only need to call kable function
 style_kable <- function(
   tbl,
@@ -381,6 +393,74 @@ if (is.null(col_widths) && n_cols == 2) {
   out}
 ```
 
+```{r data_overview_table, echo=FALSE}
+dataset_facts <- tibble::tibble(
+  Metric = c(
+    "Transactions (rows)",
+    "Variables (columns)",
+    "Districts",
+    "Quarters covered",
+    "Transactions with coordinates"),
+  Value = c(
+    format(n_transactions, big.mark = " "),
+    n_variables,
+    n_districts,
+    paste(quarters, collapse = ", "),
+    paste0(round(share_geo, 1), "%")))
+
+# Display dataset overview table
+style_kable(
+  dataset_facts,
+  caption = "Table 1. Overview of the final analytical dataset")
+```
+
+### 2.2 Data sources
+
+**Residential transaction** data are obtained from the [System for Analysis and Monitoring of the Real Estate Market (AMRON)](https://amron.pl/). This dataset contains individual apartment transactions, including information on transaction prices, price per square meter, transaction date, and location.
+
+**Population density** data are sourced from the [Main Statistical Office of Poland](https://bdl.stat.gov.pl/bdl/start) and are available at the district level. Density is measured as the number of residents per square kilometer.
+
+**Median income** data consist of median wage information, also provided by the [Main Statistical Office of Poland](https://bdl.stat.gov.pl/bdl/start). Wage data are available on a monthly basis.
+
+---
+
+
+## **3. Data Preparation**
+
+### 3.1 Data Cleaning and Transformation
+The data preparation process consisted of the following steps:
+
+1. **Standardisation of variables**: text variables (e.g. district and street names) were standardised by converting them to lowercase and removing Polish diacritics to ensure consistency across datasets.
+2. **Handling missing values**: observations with missing key information (e.g. prices, coordinates) were removed where required for the analysis and visualisation.
+3. **Geocoding**: transaction addresses were geocoded to obtain latitude and longitude coordinates.
+4. **Alignment of income data**: monthly median wage data were aggregated to a quarterly level to match the transaction date information.
+4. **Variable construction**: several analytical variables were created, including:
+   - logarithm of price per square meter,
+   - logarithm of median quarterly wage,
+   - housing affordability defined as the ratio of price per square meter to income.
+5. **Building age groups**: buildings were classified into age groups:
+$$ \text{Building age group} =
+\begin{cases}
+\text{Very old} & (<1960) \\
+\text{Old} & (1960\text{–}2010) \\
+\text{New} & (2010\text{–}2025)
+\end{cases} $$
+
+
+### 3.2 Data merging
+
+After cleaning and transforming each dataset separately, the price, population density, and wage datasets were merged into a single analytical dataset. Transaction-level price data were linked to district-level population density using the district identifier, while quarterly median wages were merged based on the transaction quarter. For data integration purposes, district names were initially standardized to a common format. After completing the merge, district names were converted back to their original Polish spelling to ensure consistency and readability in tables, figures, and maps used in the analysis.
+
+---
+
+## **4. Data Analysis**
+The empirical analysis builds on the prepared dataset to explore patterns in residential real estate affordability in Warsaw. The analysis combines numerical summaries and visual representations to examine both the distribution and spatial variation of key variables. These exploratory insights provide context for understanding how prices, income levels, and urban structure differ across the city and how these differences shape affordability outcomes.
+
+### 4.1 Descriptive Statistics
+The descriptive analysis presents the main characteristics of the data using formats tailored to the nature of each variable. Transaction-level price data allow for a detailed examination of distributional properties, while wage and population density data, observed at aggregated spatial levels, are better described through levels and spatial patterns. Together, these descriptive elements offer an initial empirical overview of affordability-related dynamics within Warsaw.
+
+#### *4.1.1 Transaction Price Data*
+Residential prices per square meter represent the **central variable** of interest in the analysis and therefore receive a more detailed descriptive treatment. Summary statistics are used to illustrate typical price levels, variability, and the presence of extreme values, while graphical representations highlight the overall shape of the price distribution. This allows for an initial assessment of market heterogeneity and provides context for the district-level comparisons presented later in the analysis.
 
 ```{r summary_stats_prices, include = FALSE}
 # First we calculate summary statistics for price per square meter
@@ -439,9 +519,9 @@ style_kable(
 ```
 ##### **Distribution of Prices per Square Meter**
 
-The distribution of residential prices per square meter in Warsaw is *right-skewed*, indicating the presence of a relatively small number of very high-priced observations. The mean price exceeds the median, which confirms the positive skewness of the distribution. Most observations are concentrated within one standard deviation around the mean, while a long right tail reflects "premium" properties with substantially higher prices per square meter. This suggests that average prices are influenced by high-end segments of the market, whereas the median better represents typical transaction values.
+As shown in **Figure 1**, the distribution of residential prices per square meter in Warsaw is *right-skewed*, indicating the presence of a relatively small number of very high-priced observations. The mean price exceeds the median, which confirms the positive skewness of the distribution. Most observations are concentrated within one standard deviation around the mean, while a long right tail reflects "premium" properties with substantially higher prices per square meter. This suggests that average prices are influenced by high-end segments of the market, whereas the median better represents typical transaction values.
 
-```{r distribution_prices, echo = FALSE, fig.align="center", out.width="70%"}
+```{r distribution_prices, echo = FALSE, fig.align="center"}
 # Extract summary statistics for plotting
 avg_price_sqm <- mean(final_data$cena_wartosc_1m2, na.rm = TRUE)
 median_price_sqm <- median(final_data$cena_wartosc_1m2, na.rm = TRUE)
@@ -478,7 +558,7 @@ ggplot(final_data, aes(x = cena_wartosc_1m2)) +
     linewidth = 0.8) +
   # Labels and theme
   labs(
-    title = "Distribution of Residential Prices per Square Meter",
+    title = "Figure 1. Distribution of Residential Prices per m²",
     subtitle = "Mean (dashed), Median (solid), and ±1 Standard Deviation (dotted)",
     x = "Price (PLN/m²)",
     y = "Relative Frequency") +
@@ -487,7 +567,7 @@ ggplot(final_data, aes(x = cena_wartosc_1m2)) +
 
 ##### **Distribution of Prices per Square Meter by District**
 
-The map reveals pronounced **spatial disparities** in residential prices per square meter across Warsaw’s districts. The highest median prices are concentrated in the **city center**, with *Śródmieście* clearly standing out as the most expensive district, reflecting its centrality, concentration of economic activity, and access to urban amenities. Beyond the city core, *Wilanów* emerges as a notable **high-price district** despite its more peripheral location. This suggests that **price levels are not driven by centrality alone**, but also by housing quality, recent development patterns, and neighborhood prestige, which are characteristic of Wilanów’s predominantly modern and high-standard residential stock. In contrast, *Mokotów*, while still relatively expensive, exhibits lower median prices than Wilanów, highlighting **heterogeneity** even among traditionally high-value districts.
+**Figure 2** reveals pronounced **spatial disparities** in residential prices per square meter across Warsaw’s districts. The highest median prices are concentrated in the **city center**, with *Śródmieście* clearly standing out as the most expensive district, reflecting its centrality, concentration of economic activity, and access to urban amenities. Beyond the city core, *Wilanów* emerges as a notable **high-price district** despite its more peripheral location. This suggests that **price levels are not driven by centrality alone**, but also by housing quality, recent development patterns, and neighborhood prestige, which are characteristic of Wilanów’s predominantly modern and high-standard residential stock. In contrast, *Mokotów*, while still relatively expensive, exhibits lower median prices than Wilanów, highlighting **heterogeneity** even among traditionally high-value districts.
 
 Lower median prices are observed in outer districts such as *Wawer*, *Białołęka*, and *Ursus*, which are characterized by lower density, greater distance from the city center, and more suburban development patterns. Overall, the spatial distribution reflects a **core–periphery structure** with important local deviations, underscoring the role of both location and neighborhood-specific attributes in shaping residential property prices in Warsaw.
 
@@ -506,7 +586,7 @@ warsaw_shp <- st_read("data/shapefiles/warszawa-dzielnice.geojson",
                       quiet = TRUE)
 ```
 
-```{r plot_price_map, echo = FALSE, warning = FALSE, message = FALSE,fig.align="center", out.width="70%"}
+```{r plot_price_map, echo = FALSE, warning = FALSE, message = FALSE,fig.align="center"}
 # Merge price data with shapefile
 price_map_data <- warsaw_shp %>%
   left_join(price_map_district, by = c("name" = "dzielnica"))
@@ -557,7 +637,7 @@ ggplot(price_map_data) +
     na.value = "grey90",
     name = "Price (PLN/m²)") +
   theme_minimal() +
-  labs(title = "Median Price per sqm by District in Warsaw",
+  labs(title = "Figure 2. Median Price per sqm by District in Warsaw",
        subtitle = "Warsaw, 2025",
        fill = "Price (PLN/m²)") +
   theme(
@@ -568,7 +648,63 @@ ggplot(price_map_data) +
 
 #### *4.1.2 Income and Population Density Data*
 
-***WHAT WE WANT TO HAVE HERE??***
+*Population density* and *income* constitute the key socio-economic variables used to assess affordability differences across Warsaw. Variables are observed at the district (density) and quarter (income) levels and linked to individual transactions via the district and date identifiers.
+
+*Population density* varies substantially across the city, reflecting Warsaw’s core–periphery structure. Central districts exhibit markedly higher densities, while outer districts are characterised by more dispersed, suburban development patterns. **Figure 3** highlights pronounced differences in population density across Warsaw’s districts. Central areas such as Śródmieście and adjacent districts exhibit the highest population concentration, while peripheral districts show substantially lower density levels. This variation reflects differences in urban form and land use intensity and provides a structural context for the affordability analysis conducted later in the report.
+
+```{r density_plot, echo=FALSE, fig.align="center"}
+# Data for the plot
+density_district <- final_data %>%
+  group_by(dzielnica) %>%
+  summarise(
+    population_density = first(population_per_1_km2),
+    .groups = "drop") %>%
+  arrange(desc(population_density))
+
+# Difining central and peripheral districts for color coding
+central_districts <- c(
+  "Śródmieście", "Wola", "Ochota", "Żoliborz",
+  "Mokotów", "Praga Północ", "Praga Południe")
+
+# Add a label for central vs peripheral
+density_plot_data <- district_transaction %>%
+  mutate(
+    centrality = ifelse(dzielnica %in% central_districts,
+                        "Central districts",
+                        "Pefipheral districts"))
+
+# Order districts by density
+density_plot_data <- density_plot_data %>%
+  arrange(avg_density) %>%
+  mutate(dzielnica = factor(dzielnica, levels = dzielnica))
+
+# Plot population density by district
+ggplot(density_plot_data,
+       aes(x = dzielnica,
+           y = avg_density,
+           fill = centrality)) +
+  geom_col(width = 0.7) +
+  scale_fill_manual(
+    values = c(
+      "Central districts" = "#fc8d59",
+      "Peripheral districts" = "#91bfdb")) +
+  labs(
+    title = "Figure 3. Population Density by District in Warsaw",
+    x = NULL,
+    y = "Population density (ppl/km²)",
+    fill = "District location") +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    axis.text.y = element_text(size = 9),
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1,
+      vjust = 1,
+      size = 9))
+```
+
+*Income* data, expressed as quarterly median wages, show relatively smaller variation across districts compared to prices, but still indicate meaningful spatial differences in purchasing power. These variables provide an important contextual background for the affordability analysis and are examined descriptively before being combined with price data in the hypothesis testing stage.
 
 
 
@@ -600,7 +736,7 @@ h1_data <- final_data %>%
     log_density = log(density))
 ```
 
-```{r h1_plot, echo=FALSE, fig.align="center", out.width="70%", message=FALSE}
+```{r h1_plot, echo=FALSE, fig.align="center", message=FALSE}
 ggplot(h1_data, aes(x = log_density, y = log_avg_price_sqm)) +
   geom_point(
     color = "#7c9ecb",
@@ -612,9 +748,9 @@ ggplot(h1_data, aes(x = log_density, y = log_avg_price_sqm)) +
     color = "#fc8d59",
     linewidth = 1.2) +
   labs(
-    title = "Relationship Between Population Density and Housing Prices",
+    title = "Figure 4. Relationship Between Population Density and Housing Prices",
     subtitle = "Log–log scale, district-level averages",
-    x = "Population Density (pp/km²; log)",
+    x = "Population Density (ppl/km²; log)",
     y = "Average Price (PLN/km²; log)") +
   theme_minimal()
 ```
@@ -623,7 +759,7 @@ $$
 \log(\text{Price}_{i}) = \alpha + \beta \log(\text{Density}_{i}) + \varepsilon_{i}
 $$
 
-The scatter plot and the fitted regression line indicate a positive relationship between population density and average residential prices per square meter at the district level. Districts with higher population density tend to exhibit higher, rather than lower, housing prices. This pattern suggests that in Warsaw, dense neighborhoods are often located in areas with strong demand, good accessibility, and a high concentration of urban amenities, which outweigh potential price-reducing effects of higher housing supply. As a result, the empirical evidence from the log–log regression **does not support Hypothesis H1**. Instead, the observed relationship is more consistent with the null hypothesis, indicating that higher population density is not associated with lower residential prices per square meter. At the same time, the dispersion of points around the regression line highlights substantial heterogeneity across districts, implying that population density alone cannot fully explain price differences and that other location-specific factors play an important role.
+The scatter plot and the fitted regression line (**Figure 4**) indicate a positive relationship between population density and average residential prices per square meter at the district level. Districts with higher population density tend to exhibit higher, rather than lower, housing prices. This pattern suggests that in Warsaw, dense neighborhoods are often located in areas with strong demand, good accessibility, and a high concentration of urban amenities, which outweigh potential price-reducing effects of higher housing supply. As a result, the empirical evidence from the log–log regression **does not support Hypothesis H1**. Instead, the observed relationship is more consistent with the null hypothesis, indicating that higher population density is not associated with lower residential prices per square meter. At the same time, the dispersion of points around the regression line highlights substantial heterogeneity across districts, implying that population density alone cannot fully explain price differences and that other location-specific factors play an important role.
 
 ---
 
@@ -737,15 +873,6 @@ The interactive choropleth map provides a spatial perspective on the relationshi
 
 Districts classified as **supporting Hypothesis 1** exhibit either high density with relatively lower prices or low density with higher prices, consistent with affordability effects predicted by urban economic theory. In contrast, districts marked as **contradicting Hypothesis 1** reveal cases where high density coincides with high prices or low density with low prices, suggesting the presence of additional structural factors such as location attractiveness, infrastructure quality, or neighborhood reputation. Overall, the map illustrates that the density–price relationship is spatially heterogeneous, reinforcing the need to interpret aggregate statistical results in a geographic context.
 
-
-
-
-
-
-
-RITA'S PART
-<br>
-
 #### *4.2.2 Hypothesis 2:*
 #### *Affordability of residential real estate on the left bank of the Vistula River in Warsaw is lower in comparison to right bank neighborhoods*
 
@@ -760,91 +887,104 @@ We test whether higher population density is associated with lower residential p
 
 We define housing affordability as the log difference between residential price per square meter and median wage. Districts are classified by river bank before computing affordability.
 
-```{r h2_affordability_exec, include = FALSE}
+Affordability calculation – R code
+```{r h2_affordability, include = FALSE}
+# Definition of left and right bank districts and construction of the affordability measure
 left_bank <- c(
-  "bemowo", "bielany", "mokotow", "ochota",
-  "srodmiescie", "ursynow", "wola",
-  "zoliborz", "wlochy", "ursus"
-)
-
+  "Bemowo", "Bielany", "Mokotów", "Ochota",
+  "Śródmieście", "Ursynów", "Wola",
+  "Żoliborz", "Włochy", "Ursus","Wilanów")
 right_bank <- c(
-  "bialoleka", "praga-polnoc", "praga-poludnie",
-  "targowek", "rembertow", "wawer", "wesola"
-)
+  "Białołęka", "Praga Północ", "Praga Południe",
+  "Targówek", "Rembertów", "Wawer", "Wesoła")
 
-clean_prices_h2 <- clean_prices %>%
+# Merge river bank info and calculate affordability
+clean_prices_h2 <- final_data %>%
   mutate(
     river_bank = case_when(
       dzielnica %in% left_bank  ~ "Left bank",
       dzielnica %in% right_bank ~ "Right bank",
-      TRUE ~ NA_character_
-    )
-  ) %>%
-  filter(!is.na(river_bank))
+      TRUE ~ NA_character_),
+  median_wage_q = as.numeric(median_wage_q),
+  # Affordability log calculation
+    # We define affordability in logarithmic terms to express housing prices relative to income levels, allowing for proportional comparisons and reducing the influence of extreme values.
+    log_affordability = log_price_sqm - log(median_wage_q))
 
-clean_prices_h2 <- clean_prices_h2 %>%
-  left_join(
-    wage_quarterly,
-    by = c("quarter_only" = "quarter")
-  )
+# Dataset used for t-test
+clean_prices_h2_ttest <- clean_prices_h2 %>%
+  filter(river_bank %in% c("Left bank", "Right bank")) %>%
+  filter(!is.na(log_affordability)) %>%
+  mutate(river_bank = factor(river_bank, levels = c("Left bank", "Right bank")))
+```
 
-clean_prices_h2 <- clean_prices_h2 %>%
+```{r show_h2_map_code, echo=FALSE, results='asis'}
+cat("<details class='codebox'><summary><b>Show code</b></summary>\n\n")
+cat("```r\n")
+cat(paste(knitr::knit_code$get("h2_affordability_map"), collapse = "\n"))
+cat("\n```\n")
+cat("\n</details>\n")
+```
+
+```{r h2_affordability_map, echo=FALSE, warning=FALSE, message=FALSE, fig.align="center"}
+# Load shapefile for Warsaw districts
+warsaw_shp <- st_read("data/shapefiles/warszawa-dzielnice.geojson",
+                      quiet = TRUE) %>%
+    st_transform(4326)
+
+# Bank classification for districts
+bank_map_data <- warsaw_shp %>%
   mutate(
-    log_affordability = log_price_sqm - log(median_wage_q)
-  )
+    river_bank = ifelse(
+      name %in% left_bank,
+      "Left bank",
+      "Right bank"))
+
+
+# Add Vislula River line
+if (!file.exists("vistula_sf.rds")) {
+  bb <- sf::st_bbox(bank_map_data)
+  vistula_sf <- osmdata::opq(bbox = c(bb["xmin"], bb["ymin"], bb["xmax"], bb["ymax"])) %>%
+    osmdata::add_osm_feature(key = "waterway", value = "river") %>%
+    osmdata::osmdata_sf() %>%
+    `[[`("osm_lines") %>%
+    sf::st_transform(4326)
+
+# Filter for warsaw only and keep only main part of the river
+  vistula_sf <- sf::st_intersection(vistula_sf, sf::st_geometry(bank_map_data))
+  vistula_sf <- sf::st_collection_extract(vistula_sf, "LINESTRING")
+  vistula_named <- vistula_sf %>%
+    dplyr::filter(!is.na(name) & stringr::str_detect(name, stringr::regex("wisła|wisla|vistula", ignore_case = TRUE)))
+  if (nrow(vistula_named) > 0) {
+    vistula_sf <- vistula_named}
+  vistula_sf <- sf::st_union(vistula_sf)
+
+# Save for future use
+  saveRDS(vistula_sf, "vistula_sf.rds")} else {
+  vistula_sf <- readRDS("vistula_sf.rds")}
+
+# Plot map of river banks
+ggplot(bank_map_data) +
+  geom_sf(aes(fill = river_bank), color = "white", linewidth = 0.3) +
+  geom_sf(data = vistula_sf, color = "#1d58a6", linewidth = 1) +
+  geom_text(
+    data = label_final,
+    aes(x = X, y = Y, label = label),
+    size = 2.6,
+    color = "grey20") +
+  scale_fill_manual(
+    values = c("Left bank" = "#7c9ecb", "Right bank" = "#fc8d59"),
+    na.value = "grey90",
+    name = NULL) +
+  theme_minimal() +
+  labs(
+    title = "Figure X. Vistula River bank classification (H2)",
+    subtitle = "Left bank vs Right bank") +
+  theme(
+    axis.title = element_blank(),
+    axis.text = element_blank(),
+    panel.grid = element_blank(),
+    legend.position = "bottom")
 ```
-
-
-<details>
-<summary><b>Affordability calculation – R code</b></summary>
-
-```r
-Definition of left and right bank districts and construction of the affordability measure
-
-left_bank <- c(
-  "bemowo", "bielany", "mokotow", "ochota",
-  "srodmiescie", "ursynow", "wola",
-  "zoliborz", "wlochy", "ursus"
-)
-
-right_bank <- c(
-"bialoleka", "praga-polnoc", "praga-poludnie",
-"targowek", "rembertow", "wawer", "wesola"
-)
-
-
-Merge of river bank info and affordability calculation
-
-clean_prices_h2 <- clean_prices %>%
-mutate(
-river_bank = case_when(
-dzielnica %in% left_bank  ~ "Left bank",
-dzielnica %in% right_bank ~ "Right bank",
-TRUE ~ NA_character_
-)
-) %>%
-filter(!is.na(river_bank))
-
-
-Calculate average prices per quarter and river bank
-
-clean_prices_h2 <- clean_prices_h2 %>%
-left_join(
-wage_quarterly,
-by = c("quarter_only" = "quarter")
-)
-
-Affordability log calculation
-
-We define affordability in logarithmic terms to express housing prices relative to income levels, allowing for proportional comparisons and reducing the influence of extreme values.
-
-clean_prices_h2 <- clean_prices_h2 %>%
-mutate(
-log_affordability = log_price_sqm - log(median_wage_q)
-)
-```
-</details>
-<br>
 
 ##### *2. T-test Affordability*
 
@@ -858,18 +998,18 @@ Mean log-affordability is higher on the left bank than on the right bank, implyi
 
 <br>
 
-```{r t-test, include = FALSE}
+Affordability T-Test – R code
+```{r h2_t-test, include = FALSE}
 t.test(
   log_affordability ~ river_bank,
-  data = clean_prices_h2,
-  alternative = "greater"
-)
+  data = clean_prices_h2_ttest,
+  alternative = "greater")
 ```
 
-```{r ttest_table, echo=FALSE}
+```{r h2_t-test_table, echo=FALSE}
 
 tt <- t.test(log_affordability ~ river_bank,
-             data = clean_prices_h2,
+             data = clean_prices_h2_ttest,
              alternative = "greater")
 
 tt_tbl <- tibble::tibble(
@@ -882,16 +1022,12 @@ tt_tbl <- tibble::tibble(
     tt$conf.int[1],
     tt$conf.int[2],
     unname(tt$estimate[1]),
-    unname(tt$estimate[2])
-  )
-) %>%
+    unname(tt$estimate[2]))) %>%
   mutate(
     Value = if_else(
       Metric == "p-value",
       format(Value, scientific = TRUE, digits = 3),
-      format(round(as.numeric(Value), 4), nsmall = 4)
-    )
-  ) %>%
+      format(round(as.numeric(Value), 4), nsmall = 4))) %>%
 rename(Statistics = Metric)
 style_kable(
   tt_tbl,
@@ -1191,6 +1327,7 @@ scale_fill_gradientn(
 
 ## **5. Discussion and Limitations**
 
+here should we mention that transactions are not equally distributed across districts?
 
 ---
 
