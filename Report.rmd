@@ -1426,7 +1426,7 @@ The ridgeline plot **(Figure 10)** offers an alternative visualization of the di
 
 
 
-```{r h3_ridgeline, echo=FALSE, message=FALSE, warning=FALSE, fig.align="center"}
+```{r h3_ridgeline, warning=FALSE, message=FALSE, class.source="fold-hide", fig.align="center"}
 
 ggplot(clean_prices_h3, aes(x = log_affordability,
                             y = building_age_group,
