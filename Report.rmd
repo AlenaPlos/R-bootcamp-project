@@ -747,6 +747,7 @@ The scatter plot and the fitted regression line (**Figure 4**) indicate a positi
 
 The map presents residential districts of Warsaw classified according to the relationship between population density and average transaction prices. Districts are color-coded based on whether their density–price combination **supports** or **contradicts Hypothesis 1**.
 
+
 >By clicking on a district, additional information is displayed, including average price per square meter, population density, the assigned density–price pattern,  and examples of the most and least expensive transactions. Individual apartment transactions are shown as point markers and can be toggled on or off using the layer control. The map can be zoomed and panned to explore spatial patterns at different scales.
 
 ```{r h1_map_setup, warning = FALSE, class.source="fold-hide"}
@@ -864,9 +865,18 @@ We test whether higher population density is associated with lower residential p
 
 <br>
 
-##### *1. Affordability calculation* {.unnumbered}
+##### *1. Affordability Calculation* {.unnumbered}
 
-We define housing affordability as the log difference between residential price per square meter and median wage. Districts are classified by river bank before computing affordability.
+Housing affordability is calculated as the natural logarithm of the ratio between residential price per square meter and median wage:
+
+$$
+A_i = \ln \left( \frac{P_i}{W_i} \right)
+$$
+
+where $A_i$ represents affordability in district i, $P_i$ is residential price per square meter, and $W_i$ is the median wage.
+
+**Figure 5** presents the spatial classification of Warsaw districts according to their location relative to the Vistula River. The map divides districts into left-bank and right-bank areas, which serves as the basis for the comparative affordability analysis conducted in this study. The Vistula River represents a major geographical and socio-economic boundary within the city, historically associated with differences in urban development patterns, infrastructure quality, and housing market dynamics.
+
 
 ```{r h2_affordability, warning = FALSE, class.source="fold-hide"}
 # Definition of left and right bank districts and construction of the affordability measure
@@ -951,7 +961,7 @@ ggplot(bank_map_data) +
     name = NULL) +
   theme_minimal() +
   labs(
-    title = "Figure X. Vistula River bank classification (H2)",
+    title = "Figure 5. Vistula River bank classification",
     subtitle = "Left bank vs Right bank") +
   theme(
     axis.title = element_blank(),
@@ -960,17 +970,18 @@ ggplot(bank_map_data) +
     legend.position = "bottom")
 ```
 
+The visual distribution shows that most central and highly developed districts are located on the left bank, while a larger share of peripheral and historically less urbanized districts is situated on the right bank. These structural differences suggest that housing market characteristics, including price levels and affordability conditions, may vary systematically between the two areas. Consequently, the classification illustrated in **Figure 5** provides the spatial framework for testing whether residential affordability differs between river banks.
+
+---
+
 ##### *2. T-test Affordability* {.unnumbered}
 
-To test Hypothesis 2, a one-sided two-sample t-test is applied to evaluate whether the mean log-affordability differs between the left and right banks of the Vistula River. The test assesses whether the mean log-affordability on the left bank is significantly higher than on the right bank, which would imply lower affordability on the left bank.
+The t-test analysis evaluates whether residential housing affordability differs between the left and right banks of the Vistula River. Affordability is measured as the logarithmic ratio between price per square meter and median wage, allowing comparisons across districts with different income levels.
 
-**Null hypothesis (H₀):**
-Mean log-affordability is equal across the left and right river banks.
+The results indicate a clear and statistically significant difference in affordability between the two river banks. The average log-affordability on the left bank amounts to approximately **0.510**, whereas the right bank exhibits a lower mean value of approximately **0.387**. Since higher log-affordability values correspond to higher housing costs relative to income, these results suggest that residential properties located on the left bank are generally less affordable than those on the right bank.
 
-**Alternative hypothesis (H₁):**
-Mean log-affordability is higher on the left bank than on the right bank, implying lower affordability on the left bank.
+The statistical evidence supporting this difference is strong. The t-statistic of **9.49** and the extremely small p-value **(p < 0.001)** indicate that the observed affordability gap is highly unlikely to be driven by random variation. Furthermore, the one-sided confidence interval confirms that affordability on the left bank is consistently higher than on the right bank across the sampled districts.
 
-<br>
 
 ```{r h2_t-test, warning = FALSE, class.source="fold-hide", results='hide'}
 t.test(
@@ -1007,34 +1018,116 @@ style_kable(
   caption = "One-sided t-test results: log-affordability by Vistula River bank",
   align = c("l", "r"))
 ```
+<br>
 
-The results of the one-sided t-test indicate a statistically significant difference in residential affordability between the two river banks. The mean log-affordability on the left bank is higher than on the right bank (0.507 vs. 0.387), indicating lower affordability on the left bank. The null hypothesis of equal mean affordability is rejected at conventional significance levels (p < 0.001). These findings support Hypothesis 2, suggesting that residential real estate on the left bank of the Vistula River is less affordable relative to income than on the right bank.
+Overall, the empirical results provide strong evidence that housing affordability varies systematically across the Vistula River banks. The analysis therefore supports Hypothesis 2, indicating that residential real estate located on the left bank is significantly less affordable relative to income compared to the right bank.
 
-##### *3. Visuals:* {.unnumbered}
-##### *Boxplot of affordability by bank* {.unnumbered}
+---
 
-To visually assess differences in residential affordability between the two river banks, a boxplot of log-affordability by river bank is presented below.
+##### *Boxplot of Affordability by River Bank* {.unnumbered}
 
-
-MISSING BOXPLOT IMAGE
-
+The **Figure 6** illustrates the distribution of log-affordability across the left and right banks of the Vistula River. The results indicate that the median log-affordability is higher on the left bank, suggesting that residential properties are generally less affordable relative to income compared to the right bank. In addition, the interquartile range is slightly wider for the left bank, indicating greater variability in affordability outcomes within this area. While both distributions exhibit some dispersion and overlap, the overall upward shift of the left-bank distribution suggests systematically higher price-to-income ratios. These visual findings are consistent with the statistical results of the one-sided t-test, which confirmed a significant difference in mean affordability between the two river banks.
 
 <br>
-<br>
-The boxplot indicates that the distribution of log-affordability is shifted upwards for the left bank relative to the right bank. The median affordability is higher on the left bank, and the interquartile range is also slightly wider, suggesting greater dispersion in affordability outcomes. These visual differences are consistent with the results of the one-sided t-test, which found a statistically significant difference in mean affordability between the two river banks.
 
-<br>
-<br>
+```{r Figure 6, echo=FALSE, fig.align="center", out.width="70%", message=FALSE, warning=FALSE}
+ggplot(clean_prices_h2, aes(x = river_bank, y = log_affordability, fill = river_bank)) +
+
+geom_boxplot(
+width = 0.40,
+alpha = 0.65,
+outlier.shape = NA,
+color = "black"
+) +
+
+scale_fill_manual(
+values = c(
+"Left bank"  = "#7c9ecb",
+"Right bank" = "#fc8d59"
+)
+) +
+
+labs(
+title = "Figure 6. Log-affordability by Vistula River bank",
+x = NULL,
+y = "Log affordability (PLN/m² / income)"
+) +
+
+theme_minimal() +
+
+theme(
+legend.position = "none",
+plot.title = element_text(size = 14),
+panel.grid.minor = element_blank()
+)
+```
+
+---
+
 
 ##### *Mean + 95% CI plot* {.unnumbered}
-<br>
-Figure below presents the mean log-affordability by river bank together with 95% confidence intervals. The figure confirms that average affordability is lower on the left bank, with non-overlapping confidence intervals supporting the statistical significance of the difference.
-<br>
-<br>
-![Mean housing affordability by Vistula River bank](data/shapefiles/Rplot_Mean_CI.png){width=90%}
+
+The **Figure 7** presents the mean log affordability index across the left and right banks of the Vistula River, together with 95% confidence intervals. The results indicate that average affordability differs systematically between the two river banks. The mean log affordability is higher on the left bank, indicating that residential prices relative to income are higher in these districts and, therefore, housing is less affordable compared to the right bank.
+
+The confidence intervals around the group means do not overlap, providing visual evidence that the observed difference is statistically meaningful. This pattern is consistent with the results of the one-sided two-sample t-test, which confirms that the difference in affordability between the two river banks is statistically significant.
+
 <br>
 
+```{r Figure 7, echo=FALSE, fig.align="center", out.width="70%", message=FALSE, warning=FALSE}
+
+affordability_summary <- clean_prices_h2 %>%
+  filter(!is.na(river_bank), !is.na(log_affordability)) %>%
+  group_by(river_bank) %>%
+  summarise(
+    mean_affordability = mean(log_affordability),
+    sd = sd(log_affordability),
+    n = n(),
+    se = sd / sqrt(n),
+    ci_lower = mean_affordability - qt(0.975, df = n - 1) * se,
+    ci_upper = mean_affordability + qt(0.975, df = n - 1) * se
+  )
+
+ggplot(affordability_summary,
+       aes(x = river_bank, y = mean_affordability)) +
+
+  geom_errorbar(
+    aes(ymin = ci_lower, ymax = ci_upper),
+    width = 0.12,
+    linewidth = 1.2,
+    colour = "black"
+  ) +
+
+  geom_point(
+    aes(fill = river_bank),
+    shape = 21,
+    size = 4,
+    colour = "black",
+    stroke = 1.1
+  ) +
+
+  scale_fill_manual(values = c(
+    "Left bank" = "#7c9ecb",
+    "Right bank" = "#fc8d59"
+  )) +
+
+  labs(
+    title = "Figure 7. Mean + 95% CI of log-affordability by Vistula River bank",
+    x = NULL,
+    y = "Mean log affordability (PLN/m² / income)"
+  ) +
+
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(size = 14),
+    panel.grid.minor = element_blank()
+  )
+```
+
+---
+
 OTHER VERSION OF BOXPLOT + MEAN CI PLOT COMBINED??
+Decide on which boxplot version (fig 6 or fig 8)
 
 ```{r h2_boxplot, echo=FALSE, fig.align="center", out.width="70%", message=FALSE, warning=FALSE}
 

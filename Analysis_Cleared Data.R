@@ -299,3 +299,57 @@ p_h3_mean_ci <- ggplot(h3_summary, aes(x = building_age_group, y = mean_log_aff)
   theme_minimal()
 
 p_h3_mean_ci
+
+
+
+# ERASE LATER!!!
+
+## Tables How Alena does
+
+```{r table_setup, include=FALSE}
+# Setup for tables so later on in report only need to call kable function
+style_kable <- function(
+tbl,
+caption,
+align = NULL,
+header_bg = "#f2f2f2",
+bootstrap = c("striped", "condensed", "bordered"),
+col_widths = NULL,
+bold_first_col = TRUE) {
+n_cols <- ncol(tbl)
+
+# Default alignment: left for first col, right for others
+if (is.null(align)) {
+align <- c("l", rep("r", n_cols - 1))}
+
+# Make table look nice
+out <- tbl %>%
+kable(
+format = "html",
+caption = caption,
+align = align,
+escape = FALSE) %>%
+kable_styling(
+full_width = FALSE,
+position = "center",
+bootstrap_options = bootstrap) %>%
+row_spec(0, bold = TRUE, background = header_bg, align = "c")
+
+# Default widths for 2-column tables
+if (is.null(col_widths) && n_cols == 2) {
+  col_widths <- c("220px", "140px")}
+
+# Apply widths to as many columns as provided in col_widths
+  if (!is.null(col_widths)) {
+    for (i in seq_len(min(length(col_widths), n_cols))) {
+      out <- out %>% column_spec(i, width = col_widths[i])}}
+
+# Make bold first column
+  if (bold_first_col) {
+    out <- out %>% column_spec(1, bold = TRUE)}
+  out}
+
+
+
+
+
