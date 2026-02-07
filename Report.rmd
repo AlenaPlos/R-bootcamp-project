@@ -858,14 +858,13 @@ Districts classified as **supporting Hypothesis 1** exhibit either high density 
 #### Hypothesis 2 {-}
 ##### *Affordability of residential real estate on the left bank of the Vistula River in Warsaw is lower in comparison to right bank neighborhoods* {.unnumbered}
 
-<br>
 The Vistula River represents a major spatial divide within Warsaw. Historically, the left bank has concentrated economic activity, central business districts, and higher-income neighborhoods, while the right bank has been more residential and, in some cases, less developed. These differences may translate into systematic affordability gaps between the two sides of the river.
 
 We test whether higher population density is associated with lower residential prices per square meter.
 
 <br>
 
-##### *1. Affordability Calculation* {.unnumbered}
+##### *Affordability Calculation* {.unnumbered}
 
 Housing affordability is calculated as the natural logarithm of the ratio between residential price per square meter and median wage:
 
@@ -874,6 +873,7 @@ A_i = \ln \left( \frac{P_i}{W_i} \right)
 $$
 
 where $A_i$ represents affordability in district i, $P_i$ is residential price per square meter, and $W_i$ is the median wage.
+
 
 **Figure 5** presents the spatial classification of Warsaw districts according to their location relative to the Vistula River. The map divides districts into left-bank and right-bank areas, which serves as the basis for the comparative affordability analysis conducted in this study. The Vistula River represents a major geographical and socio-economic boundary within the city, historically associated with differences in urban development patterns, infrastructure quality, and housing market dynamics.
 
@@ -974,7 +974,7 @@ The visual distribution shows that most central and highly developed districts a
 
 ---
 
-##### *2. T-test Affordability* {.unnumbered}
+#####  *T-test Affordability* {.unnumbered}
 
 The t-test analysis evaluates whether residential housing affordability differs between the left and right banks of the Vistula River. Affordability is measured as the logarithmic ratio between price per square meter and median wage, allowing comparisons across districts with different income levels.
 
@@ -983,14 +983,7 @@ The results indicate a clear and statistically significant difference in afforda
 The statistical evidence supporting this difference is strong. The t-statistic of **9.49** and the extremely small p-value **(p < 0.001)** indicate that the observed affordability gap is highly unlikely to be driven by random variation. Furthermore, the one-sided confidence interval confirms that affordability on the left bank is consistently higher than on the right bank across the sampled districts.
 
 
-```{r h2_t-test, warning = FALSE, class.source="fold-hide", results='hide'}
-t.test(
-  log_affordability ~ river_bank,
-  data = clean_prices_h2_ttest,
-  alternative = "greater")
-```
-
-```{r h2_t-test_table, echo=FALSE}
+```{r h2_t-test_table, warning = FALSE, class.source="fold-hide", fig.align="center"}
 
 tt <- t.test(log_affordability ~ river_bank,
              data = clean_prices_h2_ttest,
@@ -1030,42 +1023,83 @@ The **Figure 6** illustrates the distribution of log-affordability across the le
 
 <br>
 
-```{r Figure 6, echo=FALSE, fig.align="center", out.width="70%", message=FALSE, warning=FALSE}
+```{r h2_boxplot_single, warning = FALSE, class.source="fold-hide", fig.align="center"}
 ggplot(clean_prices_h2, aes(x = river_bank, y = log_affordability, fill = river_bank)) +
+    geom_boxplot(
+        width = 0.40,
+        alpha = 0.65,
+        outlier.shape = NA,
+        color = "black") +
+    scale_fill_manual(
+        values = c(
+        "Left bank"  = "#7c9ecb",
+        "Right bank" = "#fc8d59"
+        )) +
+    labs(
+        title = "Figure 6. Log-affordability by Vistula River bank",
+        x = NULL,
+        y = "Log affordability (PLN/m² / income)"
+    ) +
+    theme_minimal() +
+    theme(
+        legend.position = "none",
+        plot.title = element_text(size = 14),
+        panel.grid.minor = element_blank()
+    )
+```
 
-geom_boxplot(
-width = 0.40,
-alpha = 0.65,
-outlier.shape = NA,
-color = "black"
-) +
 
-scale_fill_manual(
-values = c(
-"Left bank"  = "#7c9ecb",
-"Right bank" = "#fc8d59"
-)
-) +
 
-labs(
-title = "Figure 6. Log-affordability by Vistula River bank",
-x = NULL,
-y = "Log affordability (PLN/m² / income)"
-) +
+##### Boxplot with Jittered Individual Observations {.unnumbered}
 
-theme_minimal() +
+**Decide on which boxplot version (fig 6 or fig 6.1)**
 
-theme(
-legend.position = "none",
-plot.title = element_text(size = 14),
-panel.grid.minor = element_blank()
-)
+
+```{r h2_boxplot_Jittered, warning = FALSE, class.source="fold-hide", fig.align="center"}
+
+# Data preparation for boxplot
+plot_data <- clean_prices_h2 %>%
+  filter(!is.na(river_bank), !is.na(log_affordability)) %>%
+  mutate(
+    river_bank = factor(
+      river_bank,
+      levels = c("Left bank", "Right bank")))
+
+# Summary statistics for mean and 95% CI
+ggplot(plot_data, aes(x = river_bank, y = log_affordability, fill = river_bank)) +
+  geom_boxplot(
+    width = 0.40,
+    alpha = 0.65,
+    outlier.shape = NA) +
+  geom_jitter(
+    aes(color = river_bank),
+    width = 0.15,
+    alpha = 0.25,
+    size = 0.8) +
+  stat_summary(
+    fun = mean,
+    geom = "point",
+    size = 2.8,
+    color = "black") +
+  scale_fill_manual(
+    values = c("Left bank" = "#7c9ecb", "Right bank" = "#fc8d59")) +
+  scale_color_manual(
+    values = c("Left bank" = "#7c9ecb", "Right bank" = "#fc8d59")) +
+  labs(
+    title = "Figure 6.1. Log-affordability by Vistula River bank",
+    x = NULL,
+    y = "Log affordability (PLN/m² / income)") +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(),
+    panel.grid.minor = element_blank())
 ```
 
 ---
 
-
 ##### *Mean + 95% CI plot* {.unnumbered}
+
 
 The **Figure 7** presents the mean log affordability index across the left and right banks of the Vistula River, together with 95% confidence intervals. The results indicate that average affordability differs systematically between the two river banks. The mean log affordability is higher on the left bank, indicating that residential prices relative to income are higher in these districts and, therefore, housing is less affordable compared to the right bank.
 
@@ -1073,7 +1107,7 @@ The confidence intervals around the group means do not overlap, providing visual
 
 <br>
 
-```{r Figure 7, echo=FALSE, fig.align="center", out.width="70%", message=FALSE, warning=FALSE}
+```{r Figure 7, warning = FALSE, class.source="fold-hide", fig.align="center"}
 
 affordability_summary <- clean_prices_h2 %>%
   filter(!is.na(river_bank), !is.na(log_affordability)) %>%
@@ -1126,53 +1160,108 @@ ggplot(affordability_summary,
 
 ---
 
-OTHER VERSION OF BOXPLOT + MEAN CI PLOT COMBINED??
-Decide on which boxplot version (fig 6 or fig 8)
+##### Boxplot + Mean CI Plot {.unnumbered}
 
-```{r h2_boxplot, echo=FALSE, fig.align="center", out.width="70%", message=FALSE, warning=FALSE}
+To provide a comprehensive visual summary of residential affordability differences across the Vistula River banks, we combine the boxplot representation with the mean and 95% confidence interval visualization in a single figure **(Figure 8)**. This integrated approach builds upon the previous analyses, where the boxplot was used to illustrate the distributional characteristics of log-affordability, while the Mean + 95% CI plot highlighted differences in central tendency and statistical uncertainty between the two river banks.
 
-# Data preparation for boxplot
-plot_data <- clean_prices_h2 %>%
-  filter(!is.na(river_bank), !is.na(log_affordability)) %>%
-  mutate(
-    river_bank = factor(
-      river_bank,
-      levels = c("Left bank", "Right bank")))
+Consistent with the previous observations, the combined figure confirms that residential real estate on the left bank exhibits higher average log-affordability values compared to the right bank, implying relatively lower affordability when housing prices are evaluated against income levels. The boxplot component reveals that the overall distribution on the left bank is shifted upward, with a slightly higher median and a comparable dispersion relative to the right bank. The inclusion of individual data points further illustrates the heterogeneity in affordability outcomes across districts.
 
-# Summary statistics for mean and 95% CI
-ggplot(plot_data, aes(x = river_bank, y = log_affordability, fill = river_bank)) +
-  geom_boxplot(
-    width = 0.40,
-    alpha = 0.65,
-    outlier.shape = NA) +
-  geom_jitter(
-    aes(color = river_bank),
-    width = 0.15,
-    alpha = 0.25,
-    size = 0.8) +
-  stat_summary(
-    fun = mean,
-    geom = "point",
-    size = 2.8,
-    color = "black") +
-  scale_fill_manual(
-    values = c("Left bank" = "#7c9ecb", "Right bank" = "#fc8d59")) +
-  scale_color_manual(
-    values = c("Left bank" = "#7c9ecb", "Right bank" = "#fc8d59")) +
-  labs(
-    title = "Log-affordability by Vistula River bank",
-    x = NULL,
-    y = "Log affordability (PLN/m² / income)") +
-  theme_minimal() +
-  theme(
-    legend.position = "none",
-    plot.title = element_text(),
-    panel.grid.minor = element_blank())
+
+```{r Figure 8, warning = FALSE, class.source="fold-hide", fig.align="center"}
+
+# Prepare summary data for CI
+
+
+affordability_summary <- clean_prices_h2 %>%
+filter(!is.na(river_bank), !is.na(log_affordability)) %>%
+group_by(river_bank) %>%
+summarise(
+mean_affordability = mean(log_affordability),
+sd = sd(log_affordability),
+n = n(),
+se = sd / sqrt(n),
+ci_lower = mean_affordability - qt(0.975, df = n - 1) * se,
+ci_upper = mean_affordability + qt(0.975, df = n - 1) * se
+)
+
+
+# Combined Plot
+
+
+ggplot(clean_prices_h2, aes(x = river_bank, y = log_affordability, fill = river_bank)) +
+
+# Boxplot
+geom_boxplot(
+width = 0.40,
+alpha = 0.65,
+outlier.shape = NA,
+color = "black"
+) +
+
+# Individual observations
+geom_jitter(
+aes(color = river_bank),
+width = 0.15,
+alpha = 0.25,
+size = 0.8
+) +
+
+# 95% CI error bars
+geom_errorbar(
+data = affordability_summary,
+aes(
+x = river_bank,
+ymin = ci_lower,
+ymax = ci_upper
+),
+width = 0.08,
+color = "black",
+size = 1.2,
+inherit.aes = FALSE
+) +
+
+# Mean points
+geom_point(
+data = affordability_summary,
+aes(x = river_bank, y = mean_affordability),
+color = "black",
+size = 3,
+inherit.aes = FALSE
+) +
+
+# Colours (your palette)
+scale_fill_manual(values = c(
+"Left bank" = "#7c9ecb",
+"Right bank" = "#fc8d59"
+)) +
+
+scale_color_manual(values = c(
+"Left bank" = "#7c9ecb",
+"Right bank" = "#fc8d59"
+)) +
+
+# Labels
+labs(
+title = "Figure 8. Log-affordability by Vistula River bank",
+x = "River bank",
+y = "Log affordability ln(Price per m² / Median income)"
+) +
+
+# Styling
+theme_minimal() +
+theme(
+legend.position = "none",
+plot.title = element_text(size = 14),
+panel.grid.minor = element_blank()
+)
 ```
 
 
+The superimposed mean markers and confidence interval bars provide an inferential perspective that complements the descriptive distributional analysis. The confidence intervals around the group means remain clearly separated, reinforcing the statistical significance identified in the t-test results presented earlier. This visual consistency across multiple representations strengthens the robustness of the findings and confirms that the observed affordability differences between river banks are not driven by outliers or distributional anomalies.
 
+Overall, the combined visualization offers a consolidated interpretation by simultaneously presenting distributional shape, central tendency, and statistical inference, thereby providing a more complete and intuitive understanding of spatial affordability disparities in Warsaw’s housing market.
 
+---
 #### Hypothesis 3 {-}
 ##### *Affordability of residential real estate differs systematically across building age groups in Warsaw* {.unnumbered}
 
@@ -1180,7 +1269,7 @@ Newer residential buildings are typically associated with higher construction st
 <br>
 <br>
 
-##### *1. ANOVA + Tukey Test* {.unnumbered}
+##### *ANOVA + Tukey Test* {.unnumbered}
 
 A one-way analysis of variance (ANOVA) is applied to test whether mean log-affordability differs across the defined building age groups. The null hypothesis states that mean affordability is equal across all groups, while the alternative hypothesis posits that at least one group exhibits a different mean log-affordability.
 Since the ANOVA test only indicates whether a difference exists but does not identify which groups differ, a Tukey Honestly Significant Difference (HSD) post-hoc test is subsequently conducted. The Tukey test performs pairwise comparisons between groups while controlling for multiple testing, allowing for the identification of statistically significant differences in mean log-affordability across building age categories.
@@ -1190,17 +1279,12 @@ Mean log-affordability is equal across all building age groups.
 
 **Alternative hypothesis (H₁):**
 At least one building age group exhibits a different mean log-affordability.
-<br>
-<br>
 
-```{r h3_data_prep, include = FALSE}
+```{r h3_anova_table, warning = FALSE, class.source="fold-hide", fig.align="center"}
 # Data preparation for ANOVA and Tukey tests
 # Exclude missing building age
 clean_prices_h3 <- clean_prices_h2 %>%
   dplyr::filter(!is.na(building_age_group), !is.na(log_affordability))
-```
-
-```{r h3_anova_tukey_tables, echo=FALSE, results='asis', message=FALSE, warning=FALSE}
 
 # ANOVA test for H3
 anova_h3 <- aov(log_affordability ~ building_age_group, data = clean_prices_h3)
@@ -1233,8 +1317,12 @@ anova_table <- style_kable(
   caption = "ANOVA results: log-affordability by building age group",
   align = c("l", "r"),
   bootstrap = c("striped", "condensed", "bordered"))
+```
 
-# --- Tukey (H3) ---
+
+```{r h3_tukey_table, warning = FALSE, results="asis", class.source="fold-hide", fig.align="center"}
+
+# Tukey for H3
 tukey_h3 <- TukeyHSD(anova_h3)
 
 tukey_df <- broom::tidy(tukey_h3) %>%
@@ -1266,44 +1354,21 @@ cat(
 ```
 
 
-The ANOVA results indicate a statistically significant difference in mean log-affordability across the groups (p < 0.001). Post-hoc Tukey HSD comparisons show that newer buildings exhibit significantly higher log-affordability than older buildings, indicating lower affordability for newer housing stock. However, the difference in mean log-affordability between newer and very old buildings is not statistically significant. In addition, very old buildings display significantly higher log-affordability compared to old buildings. Overall, these results suggest that affordability varies non-monotonically across groups, with newer and very old buildings being less affordable relative to older housing stock.
-<br>
-<br>
-<details>
-<summary><b>Affordability by building age ANOVA & Tukey Test – R code</b></summary>
-
-<br>
-
-```{r, echo=TRUE, eval=FALSE}
-
-# ANOVA test
-anova_h3 <- aov(log_affordability ~ building_age_group, data = clean_prices_h3)
-
-# Tukey HSD post-hoc test
-tukey_h3 <- TukeyHSD(anova_h3)
-
-```
-
-</details>
-
-<br>
-
-##### *2. Boxplot of affordability by building age group* {.unnumbered}
-
-To visually assess differences in residential affordability across building age groups, a boxplot of log-affordability by building age category is presented below.
-<br>
-<br>
-![Housing affordability by Building Age](Rplot_Building_Age_h3.png){width=90%}
-<br>
-<br>
-<br>
-The figure shows mean log-affordability and 95% confidence intervals by building age group. Newer buildings display the highest average log-affordability, indicating lower affordability relative to income, while older buildings are the most affordable. The confidence intervals support the statistically significant differences identified by the ANOVA and Tukey post-hoc tests.
-<br>
 
 
-ALTERNATIVE PLOTS
+The **ANOVA** results indicate a statistically significant difference in mean log-affordability across the groups **(p < 0.001)**. The **Post-hoc Tukey HSD** comparisons show that newer buildings exhibit significantly higher log-affordability than older buildings, indicating lower affordability for newer housing stock. However, the difference in mean log-affordability between newer and very old buildings is not statistically significant. In addition, very old buildings display significantly higher log-affordability compared to old buildings. Overall, these results suggest that affordability varies non-monotonically across groups, with newer and very old buildings being less affordable relative to older housing stock.
 
-```{r h3_boxplot, echo=FALSE, fig.align="center", out.width="70%", message=FALSE, warning=FALSE}
+
+___
+
+
+##### *Boxplot of affordability by building age group* {.unnumbered}
+
+The **Figure 9** illustrates the distribution of log-affordability across the three defined building age groups. Consistent with the statistical results presented in the ANOVA and Tukey post-hoc tests, noticeable differences in affordability levels are observable across categories. **New buildings (2010–2025)** display the highest median log-affordability values, indicating lower affordability relative to income. **Very old buildings (pre-1960)** exhibit similarly elevated affordability ratios, although with greater dispersion and a higher presence of extreme observations. In contrast, **buildings constructed between 1960 and 2010** show the lowest median log-affordability levels, suggesting comparatively higher affordability.
+
+
+
+```{r h3_boxplot, warning = FALSE, results="asis", class.source="fold-hide", fig.align="center"}
 
 # Data preparation for boxplot
 clean_prices_h3 <- clean_prices_h3 %>%
@@ -1334,7 +1399,7 @@ p_h3_box_jitter <- ggplot(
   scale_fill_manual(values = h3_cols) +
   scale_color_manual(values = h3_cols) +
   labs(
-    title = "Log-affordability by building age group",
+    title = "Figure 9. Log-affordability by building age group",
     x = NULL,
     y = "Log affordability (PLN/m² / income)") +
   theme_minimal() +
@@ -1346,9 +1411,23 @@ p_h3_box_jitter <- ggplot(
 p_h3_box_jitter
 ```
 
-**Ridgeline plot**
 
-``` {r h3_ridgeline, echo=FALSE, fig.align="center", out.width="70%", message=FALSE, warning=FALSE}
+The interquartile ranges further highlight variation across categories. New buildings demonstrate relatively wide distributions, reflecting heterogeneity within the modern housing stock, potentially driven by differences in location, quality, and development standards. **Very old buildings** also exhibit substantial dispersion, which may reflect varying renovation status, structural condition, and neighborhood characteristics. The narrower distribution observed for the **1960–2010 category** suggests more homogeneous affordability outcomes for this segment of the housing stock.
+
+Overall, the visual patterns support the ANOVA findings that affordability differs significantly across building age groups. In particular, the boxplot confirms the Tukey HSD results indicating statistically significant differences between old and new buildings, as well as between very old and old buildings, while differences between very old and new buildings appear less pronounced. These findings reinforce the conclusion that affordability follows a non-linear pattern across construction periods, with mid-age housing displaying relatively higher affordability compared to both newer and very old residential stock.
+
+---
+
+
+
+##### *Ridgeline plot* {.unnumbered}
+
+The ridgeline plot **(Figure 10)** offers an alternative visualization of the distribution of log-affordability across building age groups, complementing the boxplot and statistical test results. By illustrating smoothed density curves, the figure provides insight into how affordability values are distributed within each construction period.
+
+
+
+```{r h3_ridgeline, echo=FALSE, message=FALSE, warning=FALSE, fig.align="center"}
+
 ggplot(clean_prices_h3, aes(x = log_affordability,
                             y = building_age_group,
                             fill = after_stat(x))) +
@@ -1363,7 +1442,7 @@ scale_fill_gradientn(
     values  = c(0, 0.5, 1),
     name = "Log affordability") +
   labs(
-    title = "Distribution of log-affordability by building age group",
+    title = "Figure 10. Distribution of log-affordability by building age group",
     x = "Log affordability (PLN/m² / income)",
     y = NULL) +
   theme_minimal() +
@@ -1372,15 +1451,43 @@ scale_fill_gradientn(
     panel.grid.minor = element_blank())
 ```
 
+Consistent with previous findings, **new buildings (2010–2025)** show a distribution shifted toward higher log-affordability values, indicating lower affordability relative to income. **Very old buildings (pre-1960)** display a similarly elevated but more dispersed distribution, suggesting greater heterogeneity in affordability outcomes. In contrast, buildings constructed **between 1960 and 2010** present a more concentrated distribution around lower log-affordability values, indicating relatively higher affordability.
+
+Overall, the ridgeline plot confirms the non-monotonic affordability pattern identified in the ANOVA and Tukey HSD tests, reinforcing that mid-age housing stock tends to be more affordable than both newer and very old buildings.
 
 
 
+## **Discussion**
 
-## **Discussion and Limitations**
+The empirical analysis shows that residential affordability in Warsaw varies across spatial location, urban structure, and housing characteristics. The combined statistical tests and visual analyses highlight systematic differences across neighbourhoods and housing segments.
 
-here should we mention that transactions are not equally distributed across districts?
+For Hypothesis 1, the results provide only partial support. While population density differs substantially across districts, higher density is often associated with higher prices rather than lower ones. This suggests that density reflects demand concentration, accessibility, and amenity availability rather than acting as an independent driver of affordability.
+
+The findings for Hypothesis 2 indicate clear affordability differences between the two sides of the Vistula River. The left bank displays significantly higher log-affordability values, indicating lower affordability relative to income. These results likely reflect historical development patterns, infrastructure concentration, and economic activity clustering.
+
+The results strongly support Hypothesis 3, showing that affordability differs across building age groups. New buildings tend to be less affordable relative to income, while buildings constructed between 1960 and 2010 appear comparatively more affordable. Very old buildings display greater variation in affordability outcomes, reflecting differences in renovation status and property quality.
+
+It is also important to acknowledge that transaction volumes differ across districts. Central districts account for a larger share of observed transactions, while peripheral districts show lower market activity. This uneven distribution may influence affordability comparisons, as districts with fewer transactions may be less representative of local housing conditions.
+
 
 ---
+## **Limitations**
+
+The study is subject to several limitations. First, the analysis covers only two quarters of transaction data, capturing short-term market conditions rather than long-term trends.
+
+Second, affordability is measured using a price-to-income ratio, which does not include financing conditions, household wealth, or supply constraints, and therefore provides a simplified affordability proxy.
+
+Third, socio-economic variables are measured at the district level, which may mask variation within districts and introduce aggregation bias.
+
+Finally, building age categories are broad and do not incorporate renovation status or building quality. In addition, the analysis identifies statistical relationships but does not establish causal effects.
 
 
 ## **Conclusion**
+
+This study examined residential real estate affordability in Warsaw by analysing transaction-level housing price data combined with socio-economic indicators. The analysis focused on identifying spatial and structural differences in affordability across neighbourhoods, river location, and building age groups.
+
+The results show that affordability varies systematically across the city. Population density alone does not lead to lower housing prices, suggesting that dense areas often reflect higher demand and accessibility advantages. Clear spatial differences were observed between the two sides of the Vistula River, with left-bank districts displaying lower affordability relative to income. In addition, housing affordability differs across building age groups, with newer buildings tending to be less affordable and mid-age housing stock appearing comparatively more accessible.
+
+These findings highlight the importance of considering urban structure, historical development patterns, and housing characteristics when analysing affordability conditions. The results also illustrate the value of combining statistical modelling with spatial and distributional visualisations to capture heterogeneity within urban housing markets.
+
+Future research could extend the analysis by incorporating longer time horizons, additional housing quality indicators, and financing conditions in order to provide a more comprehensive understanding of affordability dynamics in Warsaw.
