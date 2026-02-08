@@ -11,7 +11,7 @@ output:
 
 <center>
 
----
+***
 
 **R-Bootcamp Project – W.MSCIDS_RB01.H2501**
 
@@ -41,11 +41,11 @@ p.date {
   text-align: center;}
 ```
 
----
+***
 
 ![*Warsaw Skyline*](fototapeta-panoramiczna-warszawa-z-lotu-ptaka-5.jpg "Source: Lunares.pl"){width=100%}
 
----
+***
 
 ```{r setup, include=FALSE}
 knitr::opts_knit$set(root.dir = ".")
@@ -288,7 +288,7 @@ The main objective of the analysis is to model and compare residential real esta
 
 All hypotheses will be evaluated using regression analysis and spatial visualization techniques to assess the relationships between housing prices, income levels, population density, river location, and building age at the neighborhood level.
 
----
+***
 
 ## **Data Description**
 
@@ -401,7 +401,7 @@ style_kable(
 
 **Median income** data consist of median wage information, also provided by the [Main Statistical Office of Poland](https://bdl.stat.gov.pl/bdl/start). Wage data are available on a monthly basis.
 
----
+***
 
 
 ## **Data Preparation**
@@ -741,7 +741,7 @@ $$
 
 The scatter plot and the fitted regression line (**Figure 4**) indicate a positive relationship between population density and average residential prices per square meter at the district level. Districts with higher population density tend to exhibit higher, rather than lower, housing prices. This pattern suggests that in Warsaw, dense neighborhoods are often located in areas with strong demand, good accessibility, and a high concentration of urban amenities, which outweigh potential price-reducing effects of higher housing supply. As a result, the empirical evidence from the log–log regression **does not support Hypothesis H1**. Instead, the observed relationship is more consistent with the null hypothesis, indicating that higher population density is not associated with lower residential prices per square meter. At the same time, the dispersion of points around the regression line highlights substantial heterogeneity across districts, implying that population density alone cannot fully explain price differences and that other location-specific factors play an important role.
 
----
+***
 
 ##### **Interactive Map: Density–Price Patterns by District** {.unnumbered}
 
@@ -972,7 +972,7 @@ ggplot(bank_map_data) +
 
 The visual distribution shows that most central and highly developed districts are located on the left bank, while a larger share of peripheral and historically less urbanized districts is situated on the right bank. These structural differences suggest that housing market characteristics, including price levels and affordability conditions, may vary systematically between the two areas. Consequently, the classification illustrated in **Figure 5** provides the spatial framework for testing whether residential affordability differs between river banks.
 
----
+***
 
 #####  *T-test Affordability* {.unnumbered}
 
@@ -1015,7 +1015,7 @@ style_kable(
 
 Overall, the empirical results provide strong evidence that housing affordability varies systematically across the Vistula River banks. The analysis therefore supports Hypothesis 2, indicating that residential real estate located on the left bank is significantly less affordable relative to income compared to the right bank.
 
----
+***
 
 ##### *Boxplot of Affordability by River Bank* {.unnumbered}
 
@@ -1096,7 +1096,7 @@ ggplot(plot_data, aes(x = river_bank, y = log_affordability, fill = river_bank))
     panel.grid.minor = element_blank())
 ```
 
----
+***
 
 ##### *Mean + 95% CI plot* {.unnumbered}
 
@@ -1107,7 +1107,7 @@ The confidence intervals around the group means do not overlap, providing visual
 
 <br>
 
-```{r Figure 7, warning = FALSE, class.source="fold-hide", fig.align="center"}
+```{r Figure_7, warning = FALSE, class.source="fold-hide", fig.align="center"}
 
 affordability_summary <- clean_prices_h2 %>%
   filter(!is.na(river_bank), !is.na(log_affordability)) %>%
@@ -1158,7 +1158,7 @@ ggplot(affordability_summary,
   )
 ```
 
----
+***
 
 ##### Boxplot + Mean CI Plot {.unnumbered}
 
@@ -1261,7 +1261,7 @@ The superimposed mean markers and confidence interval bars provide an inferentia
 
 Overall, the combined visualization offers a consolidated interpretation by simultaneously presenting distributional shape, central tendency, and statistical inference, thereby providing a more complete and intuitive understanding of spatial affordability disparities in Warsaw’s housing market.
 
----
+***
 #### Hypothesis 3 {-}
 ##### *Affordability of residential real estate differs systematically across building age groups in Warsaw* {.unnumbered}
 
@@ -1358,15 +1358,11 @@ cat(
 
 The **ANOVA** results indicate a statistically significant difference in mean log-affordability across the groups **(p < 0.001)**. The **Post-hoc Tukey HSD** comparisons show that newer buildings exhibit significantly higher log-affordability than older buildings, indicating lower affordability for newer housing stock. However, the difference in mean log-affordability between newer and very old buildings is not statistically significant. In addition, very old buildings display significantly higher log-affordability compared to old buildings. Overall, these results suggest that affordability varies non-monotonically across groups, with newer and very old buildings being less affordable relative to older housing stock.
 
-
-___
-
+***
 
 ##### *Boxplot of affordability by building age group* {.unnumbered}
 
 The **Figure 9** illustrates the distribution of log-affordability across the three defined building age groups. Consistent with the statistical results presented in the ANOVA and Tukey post-hoc tests, noticeable differences in affordability levels are observable across categories. **New buildings (2010–2025)** display the highest median log-affordability values, indicating lower affordability relative to income. **Very old buildings (pre-1960)** exhibit similarly elevated affordability ratios, although with greater dispersion and a higher presence of extreme observations. In contrast, **buildings constructed between 1960 and 2010** show the lowest median log-affordability levels, suggesting comparatively higher affordability.
-
-
 
 ```{r h3_boxplot, warning = FALSE, results="asis", class.source="fold-hide", fig.align="center"}
 
@@ -1416,15 +1412,11 @@ The interquartile ranges further highlight variation across categories. New buil
 
 Overall, the visual patterns support the ANOVA findings that affordability differs significantly across building age groups. In particular, the boxplot confirms the Tukey HSD results indicating statistically significant differences between old and new buildings, as well as between very old and old buildings, while differences between very old and new buildings appear less pronounced. These findings reinforce the conclusion that affordability follows a non-linear pattern across construction periods, with mid-age housing displaying relatively higher affordability compared to both newer and very old residential stock.
 
----
-
-
+***
 
 ##### *Ridgeline plot* {.unnumbered}
 
 The ridgeline plot **(Figure 10)** offers an alternative visualization of the distribution of log-affordability across building age groups, complementing the boxplot and statistical test results. By illustrating smoothed density curves, the figure provides insight into how affordability values are distributed within each construction period.
-
-
 
 ```{r h3_ridgeline, warning=FALSE, message=FALSE, class.source="fold-hide", fig.align="center"}
 
@@ -1455,8 +1447,6 @@ Consistent with previous findings, **new buildings (2010–2025)** show a distri
 
 Overall, the ridgeline plot confirms the non-monotonic affordability pattern identified in the ANOVA and Tukey HSD tests, reinforcing that mid-age housing stock tends to be more affordable than both newer and very old buildings.
 
-
-
 ## **Discussion**
 
 The empirical analysis shows that residential affordability in Warsaw varies across spatial location, urban structure, and housing characteristics. The combined statistical tests and visual analyses highlight systematic differences across neighbourhoods and housing segments.
@@ -1469,8 +1459,8 @@ The results strongly support Hypothesis 3, showing that affordability differs ac
 
 It is also important to acknowledge that transaction volumes differ across districts. Central districts account for a larger share of observed transactions, while peripheral districts show lower market activity. This uneven distribution may influence affordability comparisons, as districts with fewer transactions may be less representative of local housing conditions.
 
+***
 
----
 ## **Limitations**
 
 The study is subject to several limitations. First, the analysis covers only two quarters of transaction data, capturing short-term market conditions rather than long-term trends.
@@ -1480,7 +1470,6 @@ Second, affordability is measured using a price-to-income ratio, which does not 
 Third, socio-economic variables are measured at the district level, which may mask variation within districts and introduce aggregation bias.
 
 Finally, building age categories are broad and do not incorporate renovation status or building quality. In addition, the analysis identifies statistical relationships but does not establish causal effects.
-
 
 ## **Conclusion**
 
